@@ -1,0 +1,92 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>MEDNEXO — Ambiente de teste</title>
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--tx:#17212b;--mut:#5d6b7a;--br:#d8dee5;--pri:#0b6b63;--pri2:#0a5750;--bad:#b42318;--ok:#157347;--warn:#9a6700}
+@media(prefers-color-scheme:dark){:root{--bg:#10161c;--card:#18212a;--tx:#e8edf2;--mut:#93a1b0;--br:#2b3845;--pri:#2bb3a6;--pri2:#4ccabd;--bad:#ff8a80;--ok:#6fd49a;--warn:#e6b450}}
+*{box-sizing:border-box}body{margin:0;font:15px/1.45 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx)}
+header{background:var(--pri);color:#fff;padding:10px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+header b{font-size:18px;letter-spacing:.5px}header nav{display:flex;gap:4px;flex:1;flex-wrap:wrap}
+header button{background:transparent;color:#fff;border:1px solid #ffffff66;padding:6px 12px;border-radius:6px;cursor:pointer}header button.on{background:#ffffff26}
+.aviso{background:#fff3cd;color:#664d03;padding:6px 16px;font-size:13px;border-bottom:1px solid #ecd48a}
+main{max-width:1200px;margin:16px auto;padding:0 16px}
+.card{background:var(--card);border:1px solid var(--br);border-radius:10px;padding:14px;margin-bottom:14px}
+h2{margin:0 0 10px;font-size:18px}h3{margin:14px 0 6px;font-size:15px}
+table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--br);vertical-align:top}th{color:var(--mut);font-weight:600;font-size:13px}
+tr.lk{cursor:pointer}tr.lk:hover{background:#0b6b6312}
+input,select,textarea{width:100%;padding:8px;border:1px solid var(--br);border-radius:6px;background:var(--card);color:var(--tx);font:inherit}textarea{min-height:70px}
+label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:640px){.g2{grid-template-columns:1fr}}
+button.p{background:var(--pri);color:#fff;border:0;padding:9px 16px;border-radius:6px;cursor:pointer;font:inherit;margin-top:10px}button.p:hover{background:var(--pri2)}button.s{background:transparent;border:1px solid var(--br);color:var(--tx);padding:6px 10px;border-radius:6px;cursor:pointer}
+.tag{display:inline-block;padding:1px 8px;border-radius:10px;font-size:12px;border:1px solid var(--br)}.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}.mut{color:var(--mut)}
+.msg{padding:9px 12px;border-radius:6px;margin:10px 0;background:#b4231815;color:var(--bad);border:1px solid #b4231855;white-space:pre-wrap}.msg.good{background:#15734515;color:var(--ok);border-color:#15734555}
+.login{max-width:380px;margin:60px auto}code{background:var(--bg);padding:1px 5px;border-radius:4px;font-size:13px}
+.hg{display:grid;grid-template-columns:repeat(auto-fit,minmax(420px,1fr));gap:14px}@media(max-width:520px){.hg{grid-template-columns:1fr}}.hc{margin:0}.hh{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-bottom:8px;flex-wrap:wrap}
+.bar{width:90px;height:8px;background:var(--br);border-radius:4px;overflow:hidden}.bar i{display:block;height:100%;background:var(--pri)}.pc{display:flex;justify-content:space-between;gap:8px;padding:9px;border:1px solid var(--br);border-radius:8px;margin-top:8px;cursor:pointer;flex-wrap:wrap}.pc:hover{border-color:var(--pri)}
+.chips{display:flex;gap:6px;align-items:center;flex-wrap:wrap}button.on2{background:var(--pri);color:#fff;border-color:var(--pri)}.r-alto,.r-iminente{color:var(--bad);border-color:var(--bad)}.r-moderado{color:var(--warn)}.r-baixo{color:var(--ok)}
+</style></head><body>
+<div class="aviso">⚠ Ambiente de TESTE sem HTTPS — use <b>somente dados fictícios</b>. Não digite dados reais de pacientes.</div>
+<div id="app"></div>
+<script>
+const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const fd=s=>s?new Date(s).toLocaleString('pt-BR'):'—', fdd=s=>s?new Date(s+'T00:00:00').toLocaleDateString('pt-BR'):'—';
+let me=null, view='painel';
+async function api(p,o){const r=await fetch(p,o&&{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(o)});const j=await r.json().catch(()=>({}));
+  if(r.status===401&&me){me=null;render();} if(!r.ok)throw new Error(j.erro||'Erro '+r.status);return j}
+const msg=(t,good)=>`<div class="msg ${good?'good':''}">${esc(t)}</div>`;
+function render(){ if(!me){$('#app').innerHTML=`<main class="login"><div class="card"><h2>MEDNEXO</h2><p class="mut">Prontuário eletrônico multi-hospital — ambiente de teste</p>
+ <div id="m"></div><label>E-mail</label><input id="em" autocomplete="username"><label>Senha</label><input id="se" type="password" autocomplete="current-password">
+ <button class="p" onclick="entrar()">Entrar</button></div></main>`; $('#se').onkeydown=e=>e.key==='Enter'&&entrar(); return}
+ $('#app').innerHTML=`<header><b>MEDNEXO</b><nav>${[['painel','Painel'],['pacientes','Pacientes'],['auditoria','Auditoria']].map(([k,n])=>`<button class="${view===k?'on':''}" onclick="go('${k}')">${n}</button>`).join('')}</nav>
+ <span style="font-size:13px">${esc(me.nome)} · ${esc(me.papel)}</span><button onclick="sair()">Sair</button></header><main id="v"></main>`; go(view,true)}
+async function entrar(){try{const j=await api('/api/login',{email:$('#em').value,senha:$('#se').value});me={...j,hospitais:[]};Object.assign(me,await api('/api/me'));view='painel';render()}catch(e){$('#m').innerHTML=msg(e.message)}}
+async function sair(){await api('/api/logout',{});me=null;render()}
+function go(v,k){view=v;if(!k)render();else({painel,pacientes,auditoria})[v]()}
+async function painel(){const [r,hs]=await Promise.all([api('/api/painel'),api('/api/hospitais')]);const sel=window._hf||'';
+ const lista=hs.filter(h=>!sel||h.id===sel);
+ $('#v').innerHTML=`<div class="card"><h2>Hospitais e pacientes internados</h2><div style="display:flex;gap:8px;flex-wrap:wrap"><button class="s ${!sel?'on2':''}" onclick="window._hf='';painel()">Todos (${r.length})</button>
+ ${hs.map(h=>`<button class="s ${sel===h.id?'on2':''}" onclick="window._hf='${h.id}';painel()">${esc(h.nome_fantasia)} (${r.filter(x=>x.hospital===h.nome_fantasia).length})</button>`).join('')}</div></div>
+ <div class="hg">${lista.map(h=>{const ps=r.filter(x=>x.hospital===h.nome_fantasia);const pct=h.leitos?Math.round(h.ocupados*100/h.leitos):0;
+  return `<div class="card hc"><div class="hh"><div><h2 style="margin:0">${esc(h.nome_fantasia)}</h2><span class="mut">${ps.length} internado(s) · ${h.ocupados}/${h.leitos} leitos ocupados</span></div>
+  <div class="bar" title="${pct}% ocupação"><i style="width:${pct}%"></i></div></div>
+  ${ps.length?ps.map(x=>`<div class="pc" onclick="internacao('${x.internacao_id}')"><div><b>${esc(x.nome_completo)}</b> <span class="mut">${x.idade} anos</span><div class="mut">${esc(x.unidade||'')} · leito ${esc(x.leito||'—')} · Dx: ${esc(x.cid_principal||'—')}</div></div>
+   <div class="chips">${x.risco_nivel?`<span class="tag r-${esc(x.risco_nivel)}">risco ${esc(x.risco_nivel)}</span>`:`<span class="tag warn">risco ${esc(x.risco_situacao.replace(/_/g,' '))}</span>`}
+   ${x.alergias_status==='nao_avaliado'?'<span class="tag warn">alergias n/ avaliadas</span>':''}${x.qtd_pendencias?`<span class="tag bad">${x.qtd_pendencias} pend.</span>`:''}
+   <span class="mut" style="font-size:12px">últ. evol.: ${fd(x.ultima_evolucao_em)}</span></div></div>`).join(''):'<p class="mut">Nenhum paciente internado neste hospital.</p>'}</div>`}).join('')}</div>`}
+async function pacientes(){$('#v').innerHTML=`<div class="card"><h2>Pacientes</h2><div class="g2"><input id="bq" placeholder="Buscar por nome ou código (PAC-…)" oninput="lista()"><span></span></div><div id="pl"></div></div>
+ <div class="card"><h2>Novo paciente (fictício)</h2><div id="pm"></div><div class="g2"><div><label>Nome completo*</label><input id="pn"></div><div><label>Nome da mãe</label><input id="pm2"></div>
+ <div><label>Data de nascimento*</label><input id="pd" type="date"></div><div><label>CPF (opcional, válido)</label><input id="pc" maxlength="14"></div></div><button class="p" onclick="novoPac()">Cadastrar</button></div>`;lista()}
+async function lista(){const r=await api('/api/pacientes?q='+encodeURIComponent($('#bq').value));$('#pl').innerHTML=r.length?`<table><tr><th>Código</th><th>Nome</th><th>Nasc.</th><th>Episódios</th></tr>`+r.map(p=>`<tr class="lk" onclick="paciente('${p.id}','${esc(p.nome_completo)}')"><td>${p.codigo}</td><td>${esc(p.nome_completo)}</td><td>${fdd(p.data_nascimento)}</td><td>${p.episodios}</td></tr>`).join('')+'</table>':'<p class="mut">Nenhum paciente.</p>'}
+async function novoPac(){try{const r=await api('/api/pacientes',{nome_completo:$('#pn').value,nome_mae:$('#pm2').value,data_nascimento:$('#pd').value,cpf:$('#pc').value});$('#pm').innerHTML=msg('Cadastrado: '+r.codigo,1);lista()}catch(e){$('#pm').innerHTML=msg(e.message.includes('ux_paciente')?'Paciente já cadastrado (mesmo CPF ou nome+nascimento+mãe). Busque-o na lista.':e.message)}}
+async function paciente(id,nome){const r=await api('/api/paciente?id='+id);const hs=me.hospitais;
+ $('#v').innerHTML=`<div class="card"><h2>${esc(nome)}</h2><button class="s" onclick="go('pacientes')">← voltar</button>
+ <h3>Episódios (internações)</h3>${r.episodios.length?`<table><tr><th>Código</th><th>Hospital</th><th>Situação</th><th>Admissão</th><th>Alta</th></tr>`+r.episodios.map(e=>`<tr class="lk" onclick="internacao('${e.internacao_id}')"><td>${esc(e.codigo||e.internacao_codigo||'')}</td><td>${esc(e.hospital)}</td><td>${esc(e.status||e.situacao||'')}</td><td>${fd(e.data_admissao)}</td><td>${fd(e.data_alta)}</td></tr>`).join('')+'</table>':'<p class="mut">Sem internações.</p>'}</div>
+ <div class="card"><h2>Admitir em hospital</h2><div id="am"></div><div class="g2"><div><label>Hospital</label><select id="ah" onchange="leitos()">${hs.map(h=>`<option value="${h.id}">${esc(h.nome_fantasia)}</option>`).join('')}</select></div>
+ <div><label>Leito</label><select id="al"></select></div><div><label>Modalidade</label><select id="amo"><option>voluntaria</option><option>involuntaria</option><option>compulsoria</option></select></div></div>
+ <label>Motivo da internação*</label><textarea id="amt"></textarea><button class="p" onclick="admitir('${id}','${esc(nome)}')">Internar</button></div>
+ <div class="card"><h2>Linha do tempo</h2>${r.linha.length?`<table>`+r.linha.map(l=>`<tr><td>${fd(l.ocorrido_em)}</td><td>${esc(l.evento)}</td><td>${esc(l.status||'')}</td></tr>`).join('')+'</table>':'<p class="mut">Sem eventos.</p>'}</div>`;leitos()}
+async function leitos(){const r=await api('/api/leitos?hospital_id='+$('#ah').value);$('#al').innerHTML='<option value="">(sem leito)</option>'+r.map(l=>`<option value="${l.id}">${esc(l.unidade)} · ${esc(l.identificacao)}</option>`).join('')}
+async function admitir(pid,nome){try{const r=await api('/api/internacoes',{paciente_id:pid,hospital_id:$('#ah').value,leito_id:$('#al').value||null,modalidade:$('#amo').value,motivo:$('#amt').value});internacao(r.id)}catch(e){$('#am').innerHTML=msg(e.message)}}
+async function internacao(id){try{const r=await api('/api/internacao?id='+id),c=r.cab;
+ $('#v').innerHTML=`<div class="card"><button class="s" onclick="go('painel')">← painel</button><h2 style="margin-top:10px">${esc(c.nome_completo)} <span class="mut">${esc(c.paciente_codigo)} · ${c.idade} anos · CPF ${esc(c.cpf_mascarado||'—')}</span></h2>
+ <div class="g2"><div>${esc(c.hospital)} — ${esc(c.unidade||'')} ${esc(c.leito||'')}<br><span class="mut">${esc(c.internacao_codigo)} · ${esc(c.modalidade)} · ${esc(c.situacao_internacao)} · admissão ${fd(c.data_admissao)}</span></div>
+ <div>Risco: ${c.risco_nivel?`<b>${esc(c.risco_nivel)}</b>`:`<span class="warn">${esc(c.risco_situacao.replace(/_/g,' '))}</span>`}<br>Alergias: ${c.alergias_status==='nao_avaliado'?'<span class="warn">não avaliado</span>':esc(c.alergias_status.replace(/_/g,' '))}
+ ${me.papel.startsWith('medico')?` <button class="s" onclick="alerg('${c.paciente_id}','sem_alergias_conhecidas','${id}')">declarar sem alergias conhecidas</button>`:''}</div></div>
+ ${r.pendencias.length?`<h3>Pendências</h3><ul>${r.pendencias.map(p=>`<li>${esc(p.tipo)} — ${esc(p.detalhe||'')}</li>`).join('')}</ul>`:''}</div>
+ ${me.papel.startsWith('medico')&&c.situacao_internacao==='internado'?`<div class="card"><h2>Nova evolução</h2><div id="em2"></div><label>Subjetivo</label><textarea id="es"></textarea><label>Objetivo</label><textarea id="eo"></textarea><label>Conduta*</label><textarea id="ec"></textarea>
+ <button class="p" onclick="evol('${id}',true)">Assinar e salvar</button> <button class="s" onclick="evol('${id}',false)">Salvar rascunho</button></div>`:''}
+ <div class="card"><h2>Registros</h2>${r.registros.length?`<table><tr><th>Data</th><th>Tipo</th><th>Autor</th><th>Status</th></tr>`+r.registros.map(g=>`<tr class="lk" onclick="registro('${g.id}','${id}')"><td>${fd(g.ocorrido_em)}</td><td>${esc(g.tipo)}</td><td>${esc(g.autor)}</td>
+ <td>${esc(g.status)} ${g.integro===true?'<span class="ok">✔ íntegro</span>':g.integro===false?'<span class="bad">✖ ADULTERADO</span>':''}</td></tr>`).join('')+'</table>':'<p class="mut">Nenhum registro visível para o seu papel.</p>'}</div>`}catch(e){$('#v').innerHTML=`<div class="card"><button class="s" onclick="go('painel')">← painel</button>${msg(e.message)}</div>`}}
+async function alerg(p,s,id){try{await api('/api/pacientes/alergias',{paciente_id:p,status:s});internacao(id)}catch(e){alert(e.message)}}
+async function evol(id,as){try{await api('/api/evolucoes',{internacao_id:id,subjetivo:$('#es').value,objetivo:$('#eo').value,conduta:$('#ec').value,assinar:as});internacao(id)}catch(e){$('#em2').innerHTML=msg(e.message)}}
+async function registro(id,back){try{const r=await api('/api/registro?id='+id);
+ $('#v').innerHTML=`<div class="card"><button class="s" onclick="internacao('${back}')">← internação</button><h2 style="margin-top:10px">${esc(r.tipo)} <span class="tag">${esc(r.status)}</span></h2><div class="mut">${fd(r.ocorrido_em)}${r.assinado_em?` · assinado em ${fd(r.assinado_em)}`:''}</div>
+ ${['subjetivo','objetivo','conduta'].map(k=>r[k]?`<h3>${k}</h3><div style="white-space:pre-wrap">${esc(r[k])}</div>`:'').join('')}
+ ${r.hash?`<h3>Hash SHA-256</h3><code style="word-break:break-all">${r.hash}</code>`:''}
+ <h3>Adendos</h3>${r.adendos.length?r.adendos.map(a=>`<div class="card"><b>${esc(a.tipo)}</b> · ${fd(a.criado_em)}<br><span class="mut">${esc(a.justificativa)}</span><br>${esc(a.conteudo)}</div>`).join(''):'<p class="mut">Nenhum.</p>'}
+ ${r.status==='rascunho'?`<button class="p" onclick="assinar('${id}','${back}')">Assinar</button>`:r.status==='assinado'&&me.papel.startsWith('medico')?`<div id="ad"></div><label>Justificativa do adendo</label><input id="aj"><label>Conteúdo do adendo</label><textarea id="ac"></textarea><button class="p" onclick="adendo('${id}','${back}')">Registrar adendo</button><p class="mut">Registro assinado não pode ser editado — correções são feitas por adendo.</p>`:''}</div>`}catch(e){alert(e.message)}}
+async function assinar(id,b){try{await api('/api/registros/assinar',{id});registro(id,b)}catch(e){alert(e.message)}}
+async function adendo(id,b){try{await api('/api/registros/adendo',{id,justificativa:$('#aj').value,conteudo:$('#ac').value});registro(id,b)}catch(e){$('#ad').innerHTML=msg(e.message)}}
+async function auditoria(){try{const r=await api('/api/auditoria');$('#v').innerHTML=`<div class="card"><h2>Trilha de auditoria</h2>${r.quebras.length?msg('Cadeia de hash com '+r.quebras.length+' quebra(s)!'):msg('Cadeia de hash íntegra.',1)}
+ <table><tr><th>#</th><th>Quando</th><th>Ação</th><th>Entidade</th><th>Usuário</th></tr>${r.eventos.map(e=>`<tr><td>${e.seq}</td><td>${fd(e.ocorrido_em)}</td><td>${esc(e.acao)}</td><td>${esc(e.entidade||'')}</td><td>${esc(e.usuario||'')}</td></tr>`).join('')}</table></div>`}catch(e){$('#v').innerHTML=`<div class="card"><h2>Auditoria</h2>${msg(e.message)}</div>`}}
+fetch('/api/me').then(r=>r.ok?r.json():null).then(j=>{me=j;render()});
+</script></body></html>

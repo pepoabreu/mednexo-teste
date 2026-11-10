@@ -1,0 +1,27 @@
+# MEDNEXO - ambiente de TESTE (dados ficticios, sem HTTPS). Senhas vem de variaveis de ambiente (nunca no repositorio).
+services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: mednexo
+      POSTGRES_HOST_AUTH_METHOD: trust   # banco so na rede interna do compose (porta NAO publicada)
+    volumes:
+      - dbdata:/var/lib/postgresql/data
+  app:
+    build: https://github.com/pepoabreu/mednexo-teste.git#main
+    restart: unless-stopped
+    depends_on: [db]
+    ports:
+      - "8085:8080"
+    environment:
+      PGHOST: db
+      PGUSER: postgres
+      PGDATABASE: mednexo
+      PW_MEDICO: ${PW_MEDICO:?defina PW_MEDICO}
+      PW_ASSIST: ${PW_ASSIST:?defina PW_ASSIST}
+      PW_ENF: ${PW_ENF:?defina PW_ENF}
+      PW_ADM: ${PW_ADM:?defina PW_ADM}
+      PW_AUD: ${PW_AUD:?defina PW_AUD}
+volumes:
+  dbdata:
