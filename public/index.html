@@ -34,8 +34,8 @@ async function api(p,o){const r=await fetch(p,o&&{method:'POST',headers:{'Conten
   if(r.status===401&&me){me=null;render();} if(!r.ok)throw new Error(j.erro||'Erro '+r.status);return j}
 const msg=(t,good)=>`<div class="msg ${good?'good':''}">${esc(t)}</div>`;
 function render(){ if(!me){$('#app').innerHTML=`<main class="login"><div class="card"><h2>MEDNEXO</h2><p class="mut">Prontuário eletrônico multi-hospital — ambiente de teste</p>
- <div id="m"></div><label>E-mail</label><input id="em" autocomplete="username"><label>Senha</label><input id="se" type="password" autocomplete="current-password">
- <button class="p" onclick="entrar()">Entrar</button></div></main>`; $('#se').onkeydown=e=>e.key==='Enter'&&entrar(); return}
+ <div id="m"></div><label for="em">E-mail</label><input id="em" autocomplete="username"><label for="se">Senha</label><input id="se" type="password" autocomplete="current-password">
+ <button class="p" onclick="entrar()">Entrar</button></div></main>`; $('#se').addEventListener('keydown',e=>{if(e.key==='Enter')entrar()}); return}
  $('#app').innerHTML=`<header><b>MEDNEXO</b><nav>${[['painel','Painel'],['pacientes','Pacientes'],['auditoria','Auditoria']].map(([k,n])=>`<button class="${view===k?'on':''}" onclick="go('${k}')">${n}</button>`).join('')}</nav>
  <span style="font-size:13px">${esc(me.nome)} · ${esc(me.papel)}</span><button onclick="sair()">Sair</button></header><main id="v"></main>`; go(view,true)}
 async function entrar(){try{const j=await api('/api/login',{email:$('#em').value,senha:$('#se').value});me={...j,hospitais:[]};Object.assign(me,await api('/api/me'));view='painel';render()}catch(e){$('#m').innerHTML=msg(e.message)}}
