@@ -28,9 +28,8 @@ services:
     restart: unless-stopped
     depends_on: [app]
     ports:
-      - "80:80"
       - "443:443"
-    # HTTPS automatico (Let's Encrypt) no hostname da VPS
+    # HTTPS automatico (Let's Encrypt, validacao TLS-ALPN pela 443; a porta 80 do host esta ocupada)
     command: caddy reverse-proxy --from srv1590861.hstgr.cloud --to app:8080
     volumes:
       - caddydata:/data
