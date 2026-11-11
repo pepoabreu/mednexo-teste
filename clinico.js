@@ -200,6 +200,8 @@ module.exports = function (pool, { need, uuid }) {
     r.adendos = (await c.query('SELECT tipo, justificativa, conteudo, criado_em FROM mednexo.registro_adendo WHERE registro_id = $1 ORDER BY criado_em', [r.id])).rows;
     return r;
   }
-  R['GET /api/registro'] = async (s, c, q) => detalheRegistro(c, q.id);
+  const pront = require('./prontuario')(pool, { need, uuid }, { internacao, tentarAssinar, txt, ts });
+  Object.assign(R, pront.routes);
+  R['GET /api/registro'] = async (s, c, q) => { const r = await detalheRegistro(c, q.id); await pront.detalhe(c, r); return r; };
   return { routes: R, migrar: () => pool.raw(MIGRACAO) };
 };
