@@ -23,5 +23,6 @@ services:
       PW_ENF: ${PW_ENF:?defina PW_ENF}
       PW_ADM: ${PW_ADM:?defina PW_ADM}
       PW_AUD: ${PW_AUD:?defina PW_AUD}
+      CODIGO_CONVITE: ${CODIGO_CONVITE:-}
 volumes:
   dbdata:

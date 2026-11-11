@@ -34,6 +34,26 @@ async function login(req, res, b) {
   send(res, 200, { ok: true, nome: u.nome_completo, papel: u.papel }, { 'Set-Cookie': `sid=${tok}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800` });
 }
 
+async function cadastro(req, res, b) {
+  const convite = process.env.CODIGO_CONVITE;
+  if (!convite || convite.length < 8) return send(res, 404, { erro: 'cadastro desativado' });
+  const a = Buffer.from(String(b.convite || '')), z = Buffer.from(convite);
+  if (a.length !== z.length || !crypto.timingSafeEqual(a, z)) return send(res, 403, { erro: 'Código de convite inválido.' });
+  const email = need(b.email, 'e-mail obrigatório').toLowerCase().trim(), nome = need(b.nome, 'nome obrigatório').trim(), senha = need(b.senha, 'senha obrigatória');
+  if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(email)) return send(res, 400, { erro: 'E-mail inválido.' });
+  if (senha.length < 10) return send(res, 400, { erro: 'A senha precisa ter 10 ou mais caracteres.' });
+  if ((await pool.query('SELECT 1 FROM mednexo.usuario WHERE email = $1', [email])).rows.length) return send(res, 409, { erro: 'E-mail já cadastrado.' });
+  await pool.tx(async c => {
+    const org = (await c.query('SELECT id FROM mednexo.organizacao ORDER BY criado_em LIMIT 1')).rows[0].id;
+    const id = (await c.query('INSERT INTO mednexo.usuario (email, nome_completo, senha_hash) VALUES ($1,$2,$3) RETURNING id', [email, nome, hashSenha(senha)])).rows[0].id;
+    await c.query(`SELECT set_config('app.usuario_id',$1,true), set_config('app.organizacao_id',$2,true)`, [id, org]);
+    await c.query(`INSERT INTO mednexo.profissional (usuario_id, numero_registro, uf, especialidade) VALUES ($1,$2,'RJ','Psiquiatria')`, [id, String(100000 + Math.floor(Math.random() * 800000))]);
+    const m = (await c.query(`INSERT INTO mednexo.organizacao_membro (organizacao_id, usuario_id, papel) VALUES ($1,$2,'medico_administrador'::mednexo.papel_usuario) RETURNING id`, [org, id])).rows[0].id;
+    await c.query('INSERT INTO mednexo.membro_hospital (organizacao_id, membro_id, hospital_id) SELECT $1, $2, id FROM mednexo.hospital', [org, m]);
+  });
+  send(res, 200, { ok: true });
+}
+
 const routes = {
   'GET /api/me': async (s, c) => ({ nome: s.nome, papel: s.papel,
     hospitais: (await c.query('SELECT id, nome_fantasia FROM mednexo.hospital ORDER BY nome_fantasia')).rows }),
@@ -106,6 +126,7 @@ const server = http.createServer(async (req, res) => {
     if (key === 'GET /health') { await pool.query('SELECT 1'); return send(res, 200, { ok: true }); }
     if (!url.pathname.startsWith('/api/')) return send(res, 404, { erro: 'não encontrado' });
     if (req.method === 'POST' && req.headers['content-type'] && !/json/.test(req.headers['content-type'])) return send(res, 415, { erro: 'use JSON' });
+    if (key === 'POST /api/cadastro') return await cadastro(req, res, await readBody(req));
     if (key === 'POST /api/login') return await login(req, res, await readBody(req));
     const tok = cookie(req).sid; const s = tok && sessions.get(tok);
     if (!s || s.exp < Date.now()) { if (tok) sessions.delete(tok); return send(res, 401, { erro: 'sessão expirada' }); }

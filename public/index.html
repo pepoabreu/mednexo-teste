@@ -35,10 +35,16 @@ async function api(p,o){const r=await fetch(p,o&&{method:'POST',headers:{'Conten
 const msg=(t,good)=>`<div class="msg ${good?'good':''}">${esc(t)}</div>`;
 function render(){ if(!me){$('#app').innerHTML=`<main class="login"><div class="card"><h2>MEDNEXO</h2><p class="mut">Prontuário eletrônico multi-hospital — ambiente de teste</p>
  <div id="m"></div><label for="em">E-mail</label><input id="em" autocomplete="username"><label for="se">Senha</label><input id="se" type="password" autocomplete="current-password">
- <button class="p" onclick="entrar()">Entrar</button></div></main>`; $('#se').addEventListener('keydown',e=>{if(e.key==='Enter')entrar()}); return}
+ <button class="p" onclick="entrar()">Entrar</button>
+ <p class="mut" style="margin-top:14px">Primeiro acesso? <a href="#" onclick="cad();return false">Criar meu usuário</a></p></div></main>`; $('#se').addEventListener('keydown',e=>{if(e.key==='Enter')entrar()}); return}
  $('#app').innerHTML=`<header><b>MEDNEXO</b><nav>${[['painel','Painel'],['pacientes','Pacientes'],['auditoria','Auditoria']].map(([k,n])=>`<button class="${view===k?'on':''}" onclick="go('${k}')">${n}</button>`).join('')}</nav>
  <span style="font-size:13px">${esc(me.nome)} · ${esc(me.papel)}</span><button onclick="sair()">Sair</button></header><main id="v"></main>`; go(view,true)}
 async function entrar(){try{const j=await api('/api/login',{email:$('#em').value,senha:$('#se').value});me={...j,hospitais:[]};Object.assign(me,await api('/api/me'));view='painel';render()}catch(e){$('#m').innerHTML=msg(e.message)}}
+function cad(){$('#app').innerHTML=`<main class="login"><div class="card"><h2>Criar usuário</h2><div id="m"></div>
+ <label for="cn">Nome completo</label><input id="cn"><label for="ce">E-mail</label><input id="ce" autocomplete="username"><label for="cs">Senha (10+ caracteres)</label><input id="cs" type="password" autocomplete="new-password">
+ <label for="cc">Código de convite</label><input id="cc" type="password"><button class="p" onclick="criar()">Criar e entrar</button> <button onclick="render()">Voltar</button></div></main>`}
+async function criar(){try{await api('/api/cadastro',{nome:$('#cn').value,email:$('#ce').value,senha:$('#cs').value,convite:$('#cc').value});
+ const j=await api('/api/login',{email:$('#ce').value,senha:$('#cs').value});me={...j,hospitais:[]};Object.assign(me,await api('/api/me'));view='painel';render()}catch(e){$('#m').innerHTML=msg(e.message)}}
 async function sair(){await api('/api/logout',{});me=null;render()}
 function go(v,k){view=v;if(!k)render();else({painel,pacientes,auditoria})[v]()}
 async function painel(){const [r,hs]=await Promise.all([api('/api/painel'),api('/api/hospitais')]);const sel=window._hf||'';
