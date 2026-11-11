@@ -12,7 +12,7 @@ const sessions = new Map();       // token -> {uid, org, papel, nome, exp}
 const HTML = () => fs.readFileSync(path.join(__dirname, 'public', 'index.html'));
 
 const send = (res, code, obj, headers = {}) => { const b = JSON.stringify(obj); res.writeHead(code, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', ...headers }); res.end(b); };
-const readBody = req => new Promise((ok, no) => { let d = ''; req.on('data', c => { d += c; if (d.length > 1e6) { no(new Error('corpo grande')); req.destroy(); } }); req.on('end', () => { try { ok(d ? JSON.parse(d) : {}); } catch { no(new Error('JSON inválido')); } }); });
+const readBody = (req, max = 1e5) => new Promise((ok, no) => { let d = ''; req.on('data', c => { d += c; if (d.length > max) { no(new Error('corpo grande')); req.destroy(); } }); req.on('end', () => { try { ok(d ? JSON.parse(d) : {}); } catch { no(new Error('JSON inválido')); } }); });
 const cookie = req => Object.fromEntries((req.headers.cookie || '').split(';').map(s => s.trim().split('=')).filter(a => a[0]));
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const need = (v, m) => { if (v === undefined || v === null || String(v).trim() === '') throw Object.assign(new Error(m), { http: 422 }); return typeof v === 'string' ? v.trim() : v; };
@@ -54,6 +54,7 @@ async function cadastro(req, res, b) {
   send(res, 200, { ok: true });
 }
 
+const clin = require('./clinico')(pool, { need, uuid });
 const routes = {
   'GET /api/me': async (s, c) => ({ nome: s.nome, papel: s.papel,
     hospitais: (await c.query('SELECT id, nome_fantasia FROM mednexo.hospital ORDER BY nome_fantasia')).rows }),
@@ -93,23 +94,6 @@ const routes = {
     const pendencias = (await c.query('SELECT tipo, detalhe FROM mednexo.vw_pendencias WHERE internacao_id = $1', [id])).rows;
     return { cab, registros, pendencias };
   },
-  'GET /api/registro': async (s, c, q) => {
-    const id = uuid(q.id);
-    const r = (await c.query(`SELECT rc.id, rc.tipo, rc.status, rc.ocorrido_em, rc.assinado_em, encode(rc.hash_conteudo,'hex') AS hash, rc.motivo_anulacao, e.*
-      FROM mednexo.registro_clinico rc LEFT JOIN mednexo.evolucao e ON e.registro_id = rc.id WHERE rc.id = $1`, [id])).rows[0];
-    if (!r) throw Object.assign(new Error('Registro não encontrado ou sem permissão.'), { http: 404 });
-    r.adendos = (await c.query('SELECT tipo, justificativa, conteudo, criado_em FROM mednexo.registro_adendo WHERE registro_id = $1 ORDER BY criado_em', [id])).rows;
-    return r;
-  },
-  'POST /api/evolucoes': async (s, c, q, b, ctx) => {
-    const it = (await c.query('SELECT id, paciente_id, hospital_id FROM mednexo.internacao WHERE id = $1', [uuid(b.internacao_id)])).rows[0];
-    if (!it) throw Object.assign(new Error('Internação não encontrada ou sem permissão.'), { http: 404 });
-    const r = (await c.query(`INSERT INTO mednexo.registro_clinico (organizacao_id, paciente_id, hospital_id, internacao_id, tipo, autor_usuario_id)
-      VALUES ($1,$2,$3,$4,'evolucao',$5) RETURNING id`, [ctx.org, it.paciente_id, it.hospital_id, it.id, ctx.uid])).rows[0];
-    await c.query('INSERT INTO mednexo.evolucao (registro_id, subjetivo, objetivo, conduta) VALUES ($1,$2,$3,$4)', [r.id, b.subjetivo || null, b.objetivo || null, b.conduta || null]);
-    if (b.assinar) await c.query('SELECT mednexo.assinar_registro($1)', [r.id]);
-    return { id: r.id, assinado: !!b.assinar };
-  },
   'POST /api/registros/assinar': async (s, c, q, b) => { await c.query('SELECT mednexo.assinar_registro($1)', [uuid(b.id)]); return { ok: true }; },
   'POST /api/registros/adendo': async (s, c, q, b, ctx) => { await c.query(`INSERT INTO mednexo.registro_adendo (organizacao_id, registro_id, tipo, justificativa, conteudo) VALUES ($1,$2,'complemento',$3,$4)`,
       [ctx.org, uuid(b.id), need(b.justificativa, 'justificativa obrigatória'), need(b.conteudo, 'conteúdo obrigatório')]); return { ok: true }; },
@@ -117,6 +101,8 @@ const routes = {
     quebras: (await c.query('SELECT * FROM mednexo.verificar_cadeia_auditoria($1)', [ctx.org])).rows,
     eventos: (await c.query(`SELECT a.seq, a.ocorrido_em, a.acao, a.entidade, u.nome_completo AS usuario FROM mednexo.auditoria_evento a LEFT JOIN mednexo.usuario u ON u.id = a.usuario_id ORDER BY a.seq DESC LIMIT 60`)).rows }),
 };
+
+Object.assign(routes, clin.routes);
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x'); const key = `${req.method} ${url.pathname}`;
@@ -132,9 +118,10 @@ const server = http.createServer(async (req, res) => {
     if (!s || s.exp < Date.now()) { if (tok) sessions.delete(tok); return send(res, 401, { erro: 'sessão expirada' }); }
     if (key === 'POST /api/logout') { sessions.delete(tok); return send(res, 200, { ok: true }, { 'Set-Cookie': 'sid=; Max-Age=0; Path=/' }); }
     const h = routes[key]; if (!h) return send(res, 404, { erro: 'rota inexistente' });
-    const body = req.method === 'POST' ? await readBody(req) : {};
+    const body = req.method === 'POST' ? await readBody(req, 14e6) : {};
     const ctx = { org: s.org, uid: s.uid, ip: req.socket.remoteAddress, ua: req.headers['user-agent'], rid: crypto.randomUUID() };
     const out = await pool.tx(c => h(s, c, Object.fromEntries(url.searchParams), body, ctx), ctx);
+    if (out && out.__raw) { const f = out.__raw; res.writeHead(200, { 'Content-Type': f.mime, 'Content-Length': f.buf.length, 'Content-Disposition': `inline; filename="${encodeURIComponent(f.nome)}"`, 'Cache-Control': 'private, no-store', 'Content-Security-Policy': "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'" }); return res.end(f.buf); }
     send(res, 200, out);
   } catch (e) {
     const code = e.http || (e.code === '42501' ? 403 : e.code ? 400 : 500);
@@ -147,6 +134,7 @@ const server = http.createServer(async (req, res) => {
   for (let i = 0; ; i++) { try { await pool.query('SELECT 1'); break; } catch (e) { if (i > 60) throw e; await new Promise(r => setTimeout(r, 2000)); } }
   const tem = (await pool.query(`SELECT to_regnamespace('mednexo') IS NOT NULL AS ok`)).rows[0].ok;
   if (!tem) { console.log('Aplicando schema MEDNEXO...'); await pool.raw(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8')); console.log('Schema aplicado.'); }
+  await clin.migrar();
   await seed(pool, process.env);
   server.listen(PORT, '0.0.0.0', () => console.log('MEDNEXO ouvindo em', PORT));
 })().catch(e => { console.error(e); process.exit(1); });
