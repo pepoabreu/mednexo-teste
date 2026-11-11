@@ -12,8 +12,8 @@ services:
     build: https://github.com/pepoabreu/mednexo-teste.git#main
     restart: unless-stopped
     depends_on: [db]
-    ports:
-      - "8086:8080"
+    expose:
+      - "8080"
     environment:
       PGHOST: db
       PGUSER: postgres
@@ -23,5 +23,17 @@ services:
       PW_ENF: ${PW_ENF:?defina PW_ENF}
       PW_ADM: ${PW_ADM:?defina PW_ADM}
       PW_AUD: ${PW_AUD:?defina PW_AUD}
+  https:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    depends_on: [app]
+    ports:
+      - "80:80"
+      - "443:443"
+    # HTTPS automatico (Let's Encrypt) no hostname da VPS
+    command: caddy reverse-proxy --from srv1590861.hstgr.cloud --to app:8080
+    volumes:
+      - caddydata:/data
 volumes:
+  caddydata:
   dbdata:
