@@ -56,13 +56,14 @@ async function cadastro(req, res, b) {
 
 const clin = require('./clinico')(pool, { need, uuid });
 const rep = require('./repasse')(pool, { need, uuid });
+const hosp = require('./hospitais')(pool, { need, uuid });
 const routes = {
   'GET /api/me': async (s, c) => ({ nome: s.nome, papel: s.papel,
-    hospitais: (await c.query('SELECT id, nome_fantasia FROM mednexo.hospital ORDER BY nome_fantasia')).rows }),
+    hospitais: (await c.query('SELECT id, nome_fantasia FROM mednexo.hospital WHERE ativo ORDER BY nome_fantasia')).rows }),
   'GET /api/hospitais': async (s, c) => (await c.query(`SELECT h.id, h.nome_fantasia,
       (SELECT count(*)::int FROM mednexo.leito l WHERE l.hospital_id = h.id AND l.ativo) AS leitos,
       (SELECT count(*)::int FROM mednexo.internacao_movimentacao m WHERE m.hospital_id = h.id AND m.fim IS NULL) AS ocupados
-     FROM mednexo.hospital h ORDER BY h.nome_fantasia`)).rows,
+     FROM mednexo.hospital h WHERE h.ativo ORDER BY h.nome_fantasia`)).rows,
   'GET /api/leitos': async (s, c, q) => (await c.query(`SELECT l.id, l.identificacao, u.nome AS unidade FROM mednexo.leito l JOIN mednexo.unidade_internacao u ON u.id = l.unidade_id
      WHERE l.hospital_id = $1 AND l.ativo AND NOT EXISTS (SELECT 1 FROM mednexo.internacao_movimentacao m WHERE m.leito_id = l.id AND m.fim IS NULL) ORDER BY u.nome, l.identificacao`, [uuid(q.hospital_id)])).rows,
   'GET /api/pacientes': async (s, c, q) => (await c.query(`SELECT id, codigo, nome_completo, data_nascimento, alergias_status,
@@ -103,7 +104,7 @@ const routes = {
     eventos: (await c.query(`SELECT a.seq, a.ocorrido_em, a.acao, a.entidade, u.nome_completo AS usuario FROM mednexo.auditoria_evento a LEFT JOIN mednexo.usuario u ON u.id = a.usuario_id ORDER BY a.seq DESC LIMIT 60`)).rows }),
 };
 
-Object.assign(routes, clin.routes, rep.routes);
+Object.assign(routes, clin.routes, rep.routes, hosp.routes);
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x'); const key = `${req.method} ${url.pathname}`;
@@ -137,6 +138,7 @@ const server = http.createServer(async (req, res) => {
   if (!tem) { console.log('Aplicando schema MEDNEXO...'); await pool.raw(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8')); console.log('Schema aplicado.'); }
   await clin.migrar();
   await rep.migrar();
+  await hosp.migrar();
   await seed(pool, process.env);
   server.listen(PORT, '0.0.0.0', () => console.log('MEDNEXO ouvindo em', PORT));
 })().catch(e => { console.error(e); process.exit(1); });
