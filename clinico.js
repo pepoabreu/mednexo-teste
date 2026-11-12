@@ -196,6 +196,12 @@ module.exports = function (pool, { need, uuid }) {
       r.itens = await itensPresc(c, r.id);
       r.alertas = (await c.query('SELECT id, tipo, gravidade, mensagem, justificativa_medica FROM mednexo.alerta_prescricao WHERE registro_id = $1 ORDER BY gravidade DESC', [r.id])).rows;
     }
+    if (['parecer', 'relatorio', 'atestado', 'declaracao', 'encaminhamento', 'solicitacao_exames'].includes(r.tipo))
+      r.documento = (await c.query('SELECT d.titulo, d.finalidade, d.destinatario, d.corpo, d.dias_afastamento, d.cid_id, cid.codigo AS cid_codigo, cid.descricao AS cid_descricao FROM mednexo.documento_clinico d LEFT JOIN mednexo.cid ON cid.id = d.cid_id WHERE d.registro_id = $1', [r.id])).rows[0];
+    if (r.tipo === 'receita') {
+      r.receita = (await c.query('SELECT tipo, validade_ate, observacoes FROM mednexo.receita WHERE registro_id = $1', [r.id])).rows[0];
+      r.receita_itens = (await c.query('SELECT i.ordem, p.nome AS principio, ma.concentracao_valor, ma.concentracao_unidade, ma.forma_farmaceutica, i.posologia, i.via, i.quantidade, i.unidade_quantidade, i.observacoes FROM mednexo.receita_item i JOIN mednexo.medicamento_apresentacao ma ON ma.id = i.apresentacao_id JOIN mednexo.principio_ativo p ON p.id = ma.principio_ativo_id WHERE i.registro_id = $1 ORDER BY i.ordem', [r.id])).rows;
+    }
     r.anexos = (await c.query(`SELECT a.id, a.nome_original, a.mime_type, a.tamanho_bytes, ra.legenda FROM mednexo.registro_arquivo ra JOIN mednexo.arquivo a ON a.id = ra.arquivo_id WHERE ra.registro_id = $1`, [r.id])).rows;
     r.adendos = (await c.query('SELECT tipo, justificativa, conteudo, criado_em FROM mednexo.registro_adendo WHERE registro_id = $1 ORDER BY criado_em', [r.id])).rows;
     return r;
@@ -203,5 +209,6 @@ module.exports = function (pool, { need, uuid }) {
   const pront = require('./prontuario')(pool, { need, uuid }, { internacao, tentarAssinar, txt, ts });
   Object.assign(R, pront.routes);
   R['GET /api/registro'] = async (s, c, q) => { const r = await detalheRegistro(c, q.id); await pront.detalhe(c, r); return r; };
-  return { routes: R, migrar: () => pool.raw(MIGRACAO) };
+  return { routes: R, migrar: () => pool.raw(MIGRACAO), salvarArquivo, tentarAssinar, internacao, itensPresc,
+    detalhe: async (c, id) => { const r = await detalheRegistro(c, id); await pront.detalhe(c, r); return r; } };
 };

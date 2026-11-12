@@ -56,6 +56,7 @@ async function cadastro(req, res, b) {
 
 const clin = require('./clinico')(pool, { need, uuid });
 const rep = require('./repasse')(pool, { need, uuid });
+const docs = require('./documentos')(pool, { need, uuid }, clin);
 const hosp = require('./hospitais')(pool, { need, uuid });
 const routes = {
   'GET /api/me': async (s, c) => ({ nome: s.nome, papel: s.papel,
@@ -104,7 +105,7 @@ const routes = {
     eventos: (await c.query(`SELECT a.seq, a.ocorrido_em, a.acao, a.entidade, u.nome_completo AS usuario FROM mednexo.auditoria_evento a LEFT JOIN mednexo.usuario u ON u.id = a.usuario_id ORDER BY a.seq DESC LIMIT 60`)).rows }),
 };
 
-Object.assign(routes, clin.routes, rep.routes, hosp.routes);
+Object.assign(routes, clin.routes, rep.routes, hosp.routes, docs.routes);
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x'); const key = `${req.method} ${url.pathname}`;
