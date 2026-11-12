@@ -23,8 +23,6 @@ services:
       PW_ENF: ${PW_ENF:?defina PW_ENF}
       PW_ADM: ${PW_ADM:?defina PW_ADM}
       PW_AUD: ${PW_AUD:?defina PW_AUD}
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
-      IA_MODELO: ${IA_MODELO:-claude-sonnet-5-5}
       CODIGO_CONVITE: ${CODIGO_CONVITE:-}
 volumes:
   dbdata:
