@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b6b63"><meta name="apple-mobile-web-app-capable" content="yes">
 <title>MEDNEXO — Ambiente de teste</title>
 <style>
 :root{--bg:#f4f6f8;--card:#fff;--tx:#17212b;--mut:#5d6b7a;--br:#d8dee5;--pri:#0b6b63;--pri2:#0a5750;--bad:#b42318;--ok:#157347;--warn:#9a6700}
@@ -30,6 +30,52 @@ button.p{background:var(--pri);color:#fff;border:0;padding:9px 16px;border-radiu
 .rg{display:flex;gap:10px;flex-wrap:wrap}.rg label{display:inline;margin:0;color:var(--tx)}.rg input{width:auto}.dom{border:1px solid var(--br);border-radius:8px;padding:8px;margin:6px 0}.sub{font-size:13px;color:var(--mut)}.tabs button.on2{background:var(--pri);color:#fff}
 .ovl{position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}.ovl .card{max-width:460px;width:100%;margin:0;max-height:92vh;overflow:auto}.sit{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid}.sit.previsto{background:#eef2f4;border-color:#9fb0b8}.sit.faturado,.sit.parcial{background:#dfeafb;border-color:#8db4e6;color:#1b4f8f}.sit.vencido,.sit.parcial_vencido{background:#fdeceb;border-color:#d98a83;color:#8e1b12}.sit.recebido{background:#ddf1e4;border-color:#86c59c;color:#1b5e36}.sit.glosado,.sit.cancelado{background:#fff1dc;border-color:#e8b25e;color:#7a4a00}.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 
+/* ===== Responsivo (iPhone e Android) ===== */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+body{overflow-x:hidden}
+header{position:sticky;top:0;z-index:35;padding-top:max(10px,env(safe-area-inset-top,0px));padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+.aviso{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
+main{padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-bottom:max(24px,env(safe-area-inset-bottom,0px))}
+.card,.item,.dom{min-width:0}
+img,video,iframe{max-width:100%}
+.hg{grid-template-columns:repeat(auto-fit,minmax(min(420px,100%),1fr))}
+input,select,textarea{min-height:44px}
+input[type=checkbox],input[type=radio]{min-height:0}
+button.p,button.s,header button{min-height:44px}
+@media(max-width:700px){
+  body{font-size:16px}
+  input,select,textarea{font-size:16px}
+  header{gap:8px;flex-wrap:wrap;align-items:center;padding-top:max(8px,env(safe-area-inset-top,0px));padding-bottom:8px}
+  header nav button{min-height:40px}
+  header b{font-size:17px}
+  header nav{order:4;flex:1 0 100%;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:2px}
+  header nav::-webkit-scrollbar{display:none}
+  header nav button{flex:0 0 auto;white-space:nowrap}
+  header b{order:1}.who{order:2;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:right}.who .papel{display:none}header>button{order:3;padding:0 12px}
+  main{margin:12px auto;padding-bottom:calc(88px + env(safe-area-inset-bottom,0px))}
+  .card{padding:12px;border-radius:12px}
+  h2{font-size:20px}
+  table{display:block;max-width:100%;overflow-x:auto;-webkit-overflow-scrolling:touch}
+  th,td{padding:9px 8px}
+  .g2,.g3,.g4{grid-template-columns:1fr}
+  #tabs,#rtabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:4px}
+  #tabs::-webkit-scrollbar,#rtabs::-webkit-scrollbar{display:none}
+  #tabs button,#rtabs button{flex:0 0 auto;white-space:nowrap}
+  .tabs button.p,.tabs label.s{flex:1 1 auto}
+  .tabs{gap:8px}
+  .login{margin:24px auto}
+  .pc{padding:12px}
+  .hh{align-items:flex-start}
+  .ovl{align-items:flex-end;padding:0}
+  .ovl .card{max-width:none;border-radius:16px 16px 0 0;max-height:90vh;max-height:90dvh;padding-bottom:max(14px,env(safe-area-inset-bottom,0px))}
+  .drop{padding:12px}
+  .thumb{max-height:60vh}
+  .mic{bottom:max(12px,env(safe-area-inset-bottom,0px))}
+  pre,code{white-space:pre-wrap;word-break:break-word}
+}
+@media(max-width:380px){header b{font-size:16px}.card{padding:10px}}
+@media(hover:none){tr.lk:hover{background:none}button.p:hover{background:var(--pri)}}
+
 .mic{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:max(16px,env(safe-area-inset-bottom,0px));z-index:40;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
 .mic button{min-height:48px;padding:0 18px;border-radius:999px;border:0;background:var(--pri);color:#fff;font:600 15px system-ui,sans-serif;box-shadow:0 6px 20px #0004;cursor:pointer}
 .mic button.on{background:#b42318;animation:mp 1.4s infinite}
@@ -51,7 +97,7 @@ function render(){ if(!me){$('#app').innerHTML=`<main class="login"><div class="
  <button class="p" onclick="entrar()">Entrar</button>
  <p class="mut" style="margin-top:14px">Primeiro acesso? <a href="#" onclick="cad();return false">Criar meu usuário</a></p></div></main>`; $('#se').addEventListener('keydown',e=>{if(e.key==='Enter')entrar()}); return}
  $('#app').innerHTML=`<header><b>MEDNEXO</b><nav>${[['painel','Painel'],['pacientes','Pacientes'],...(['medico_administrador','administrativo','admin_plataforma'].includes(me.papel)?[['hospitais','Hospitais']]:[]),...(me.papel.startsWith('medico')?[['repasse','Repasse']]:[]),['auditoria','Auditoria']].map(([k,n])=>`<button class="${view===k?'on':''}" onclick="go('${k}')">${n}</button>`).join('')}</nav>
- <span style="font-size:13px">${esc(me.nome)} · ${esc(me.papel)}</span><button onclick="sair()">Sair</button></header><main id="v"></main>`; go(view,true)}
+ <span class="who" style="font-size:13px">${esc(me.nome)}<span class="papel"> · ${esc(me.papel)}</span></span><button onclick="sair()">Sair</button></header><main id="v"></main>`; go(view,true)}
 async function entrar(){try{const j=await api('/api/login',{email:$('#em').value,senha:$('#se').value});me={...j,hospitais:[]};Object.assign(me,await api('/api/me'));view='painel';render()}catch(e){$('#m').innerHTML=msg(e.message)}}
 function cad(){$('#app').innerHTML=`<main class="login"><div class="card"><h2>Criar usuário</h2><div id="m"></div>
  <label for="cn">Nome completo</label><input id="cn"><label for="ce">E-mail</label><input id="ce" autocomplete="username"><label for="cs">Senha (10+ caracteres)</label><input id="cs" type="password" autocomplete="new-password">
