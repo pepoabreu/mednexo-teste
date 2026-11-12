@@ -1,19 +1,19 @@
 <!doctype html>
-<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b6b63"><meta name="apple-mobile-web-app-capable" content="yes">
-<title>MEDNEXO — Ambiente de teste</title>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><meta name="theme-color" content="#0b2a6b"><meta name="apple-mobile-web-app-capable" content="yes">
+<link rel="icon" href="/assets/icon-192.png"><link rel="apple-touch-icon" href="/assets/icon-192.png"><title>MedNexo — Prontuário eletrônico</title>
 <style>
-:root{--bg:#f4f6f8;--card:#fff;--tx:#17212b;--mut:#5d6b7a;--br:#d8dee5;--pri:#0b6b63;--pri2:#0a5750;--bad:#b42318;--ok:#157347;--warn:#9a6700}
-@media(prefers-color-scheme:dark){:root{--bg:#10161c;--card:#18212a;--tx:#e8edf2;--mut:#93a1b0;--br:#2b3845;--pri:#2bb3a6;--pri2:#4ccabd;--bad:#ff8a80;--ok:#6fd49a;--warn:#e6b450}}
+:root{--bg:#f2f6fb;--card:#fff;--tx:#0b1f45;--mut:#4b5f80;--br:#d8e2f0;--pri:#1565d8;--pri2:#0b2a6b;--navy:#0b2a6b;--teal:#14b8b0;--bad:#b42318;--ok:#157347;--warn:#9a6700}
+@media(prefers-color-scheme:dark){:root{--bg:#08152e;--card:#10264d;--tx:#e8eefb;--mut:#9db0d3;--br:#223a68;--pri:#4d94ff;--pri2:#2dd4cb;--navy:#06142e;--teal:#2dd4cb;--bad:#ff8a80;--ok:#6fd49a;--warn:#e6b450}}
 *{box-sizing:border-box}body{margin:0;font:15px/1.45 system-ui,Segoe UI,Roboto,sans-serif;background:var(--bg);color:var(--tx)}
-header{background:var(--pri);color:#fff;padding:10px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
-header b{font-size:18px;letter-spacing:.5px}header nav{display:flex;gap:4px;flex:1;flex-wrap:wrap}
+header{background:linear-gradient(100deg,#0b2a6b 0%,#1565d8 70%,#14b8b0 130%);color:#fff;box-shadow:0 2px 12px #0b2a6b33;padding:10px 16px;display:flex;gap:12px;align-items:center;flex-wrap:wrap}
+header b{font-size:18px;letter-spacing:.2px;display:flex;align-items:center;gap:8px;font-weight:800}.logo{display:inline-flex;background:#fff;border-radius:10px;padding:3px;box-shadow:0 1px 4px #0b2a6b55}.logo img{height:30px;width:auto;display:block}.brand-t span{color:#7fe3dc}header nav{display:flex;gap:4px;flex:1;flex-wrap:wrap}
 header button{background:transparent;color:#fff;border:1px solid #ffffff66;padding:6px 12px;border-radius:6px;cursor:pointer}header button.on{background:#ffffff26}
 .aviso{background:#fff3cd;color:#664d03;padding:6px 16px;font-size:13px;border-bottom:1px solid #ecd48a}
 main{max-width:1200px;margin:16px auto;padding:0 16px}
 .card{background:var(--card);border:1px solid var(--br);border-radius:10px;padding:14px;margin-bottom:14px}
 h2{margin:0 0 10px;font-size:18px}h3{margin:14px 0 6px;font-size:15px}
 table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:7px 8px;border-bottom:1px solid var(--br);vertical-align:top}th{color:var(--mut);font-weight:600;font-size:13px}
-tr.lk{cursor:pointer}tr.lk:hover{background:#0b6b6312}
+tr.lk{cursor:pointer}tr.lk:hover{background:#1565d812}
 input,select,textarea{width:100%;padding:8px;border:1px solid var(--br);border-radius:6px;background:var(--card);color:var(--tx);font:inherit}textarea{min-height:70px}
 label{display:block;font-size:13px;color:var(--mut);margin:8px 0 3px}.g2{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:640px){.g2{grid-template-columns:1fr}}
 button.p{background:var(--pri);color:#fff;border:0;padding:9px 16px;border-radius:6px;cursor:pointer;font:inherit;margin-top:10px}button.p:hover{background:var(--pri2)}button.s{background:transparent;border:1px solid var(--br);color:var(--tx);padding:6px 10px;border-radius:6px;cursor:pointer}
@@ -82,8 +82,11 @@ button.p,button.s,header button{min-height:44px}
 @keyframes mp{50%{box-shadow:0 0 0 10px #b4231833}}
 .mic .st{max-width:min(320px,80vw);background:var(--card);border:1px solid var(--br);border-radius:10px;padding:8px 12px;font-size:13px;color:var(--tx);box-shadow:0 6px 20px #0003}
 @media (prefers-reduced-motion:reduce){.mic button.on{animation:none}}
+.lockup{background:#fff;border-radius:12px;padding:8px;margin:0 0 8px;text-align:center}.lockup img{max-width:100%;height:auto;max-height:130px}
+.card{box-shadow:0 1px 3px #0b2a6b0f}button.p{background:linear-gradient(100deg,#1565d8,#0f7fd0)}button.p:hover{background:#0b2a6b}
+a{color:var(--pri)}
 </style></head><body>
-<div class="aviso">⚠ Ambiente de TESTE sem HTTPS — use <b>somente dados fictícios</b>. Não digite dados reais de pacientes.</div>
+<div class="aviso" id="avisoTeste"></div><script>document.getElementById("avisoTeste").innerHTML=location.protocol==="https:"?"⚠ Ambiente de <b>avaliação</b> — use <b>somente dados fictícios</b> até a contratação.":"⚠ Ambiente de TESTE sem HTTPS — use <b>somente dados fictícios</b>. Não digite dados reais de pacientes."</script>
 <div id="app"></div>
 <script>
 const $=s=>document.querySelector(s), esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -92,18 +95,22 @@ let me=null, view='painel';
 async function api(p,o){const r=await fetch(p,o&&{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(o)});const j=await r.json().catch(()=>({}));
   if(r.status===401&&me){me=null;render();} if(!r.ok)throw new Error(j.erro||'Erro '+r.status);return j}
 const msg=(t,good)=>`<div class="msg ${good?'good':''}">${esc(t)}</div>`;
-function render(){ if(!me){$('#app').innerHTML=`<main class="login"><div class="card"><h2>MEDNEXO</h2><p class="mut">Prontuário eletrônico multi-hospital — ambiente de teste</p>
+function render(){ if(!me){$('#app').innerHTML=`<main class="login"><div class="card"><div class="lockup"><img src="/assets/lockup.png" alt="MedNexo — seu paciente conectado"></div><p class="mut" style="text-align:center">Prontuário eletrônico multi-hospital</p>
  <div id="m"></div><label for="em">E-mail</label><input id="em" autocomplete="username"><label for="se">Senha</label><input id="se" type="password" autocomplete="current-password">
  <button class="p" onclick="entrar()">Entrar</button>
- <p class="mut" style="margin-top:14px">Primeiro acesso? <a href="#" onclick="cad();return false">Criar meu usuário</a></p></div></main>`; $('#se').addEventListener('keydown',e=>{if(e.key==='Enter')entrar()}); return}
- $('#app').innerHTML=`<header><b>MEDNEXO</b><nav>${[['painel','Painel'],['pacientes','Pacientes'],...(['medico_administrador','administrativo','admin_plataforma'].includes(me.papel)?[['hospitais','Hospitais']]:[]),...(me.papel.startsWith('medico')?[['repasse','Repasse']]:[]),['auditoria','Auditoria']].map(([k,n])=>`<button class="${view===k?'on':''}" onclick="go('${k}')">${n}</button>`).join('')}</nav>
- <span class="who" style="font-size:13px">${esc(me.nome)}<span class="papel"> · ${esc(me.papel)}</span></span><button onclick="sair()">Sair</button></header><main id="v"></main>`; go(view,true)}
+ <p class="mut" style="margin-top:14px">Novo por aqui? <a href="#" onclick="cad();return false">Teste grátis por 14 dias</a></p></div></main>`; $('#se').addEventListener('keydown',e=>{if(e.key==='Enter')entrar()}); return}
+ $('#app').innerHTML=`<header><b><span class="logo"><img src="/assets/symbol.png" alt=""></span><span class="brand-t">Med<span>Nexo</span></span></b><nav>${[['painel','Painel'],['pacientes','Pacientes'],...(['medico_administrador','administrativo','admin_plataforma'].includes(me.papel)?[['hospitais','Hospitais']]:[]),...(me.papel.startsWith('medico')?[['repasse','Repasse']]:[]),['auditoria','Auditoria']].map(([k,n])=>`<button class="${view===k?'on':''}" onclick="go('${k}')">${n}</button>`).join('')}</nav>
+ <span class="who" style="font-size:13px">${esc(me.nome)}<span class="papel"> · ${esc(me.papel)}</span></span><button onclick="sair()">Sair</button></header>${me.plano==='teste'?`<div class="aviso" style="background:#e8f3ef;color:#0b3d33">${me.teste_dias_restantes>=0?`Período de teste: <b>${me.teste_dias_restantes} dia(s)</b> restante(s). Para continuar após o teste, fale conosco.`:'Seu período de teste terminou. Seus dados continuam preservados e acessíveis; fale conosco para contratar.'}</div>`:''}<main id="v"></main>`; go(view,true)}
 async function entrar(){try{const j=await api('/api/login',{email:$('#em').value,senha:$('#se').value});me={...j,hospitais:[]};Object.assign(me,await api('/api/me'));view='painel';render()}catch(e){$('#m').innerHTML=msg(e.message)}}
-function cad(){$('#app').innerHTML=`<main class="login"><div class="card"><h2>Criar usuário</h2><div id="m"></div>
- <label for="cn">Nome completo</label><input id="cn"><label for="ce">E-mail</label><input id="ce" autocomplete="username"><label for="cs">Senha (10+ caracteres)</label><input id="cs" type="password" autocomplete="new-password">
- <label for="cc">Código de convite</label><input id="cc" type="password"><button class="p" onclick="criar()">Criar e entrar</button> <button onclick="render()">Voltar</button></div></main>`}
-async function criar(){try{await api('/api/cadastro',{nome:$('#cn').value,email:$('#ce').value,senha:$('#cs').value,convite:$('#cc').value});
- const j=await api('/api/login',{email:$('#ce').value,senha:$('#cs').value});me={...j,hospitais:[]};Object.assign(me,await api('/api/me'));view='painel';render()}catch(e){$('#m').innerHTML=msg(e.message)}}
+function cad(){$('#app').innerHTML=`<main class="login"><div class="card"><h2>Teste grátis por 14 dias</h2><p class="mut">Você recebe um ambiente <b>próprio e isolado</b>: seus hospitais e pacientes não são visíveis a nenhuma outra conta.</p><div id="m"></div>
+ <label for="cl">Consultório / clínica</label><input id="cl"><label for="cn">Seu nome completo</label><input id="cn" autocomplete="name">
+ <label for="ce">E-mail</label><input id="ce" type="email" autocomplete="username"><label for="ct">Telefone (opcional)</label><input id="ct" type="tel" autocomplete="tel">
+ <div style="display:flex;gap:8px"><div style="flex:1"><label for="cr">CRM (números)</label><input id="cr" inputmode="numeric"></div><div style="width:90px"><label for="cu">UF</label><input id="cu" maxlength="2" style="text-transform:uppercase"></div></div>
+ <label for="cs">Senha (10+ caracteres)</label><input id="cs" type="password" autocomplete="new-password">
+ <label style="display:flex;gap:8px;align-items:flex-start;margin-top:10px"><input id="ca" type="checkbox" style="width:auto;margin-top:3px"><span>Li e aceito os Termos de Uso e a Política de Privacidade (LGPD). Sou o responsável pelos dados dos meus pacientes.</span></label>
+ <button class="p" onclick="criar()">Criar ambiente e entrar</button> <button onclick="render()">Voltar</button></div></main>`}
+async function criar(){try{const e=$('#ce').value,sn=$('#cs').value;await api('/api/contratar',{clinica:$('#cl').value,nome:$('#cn').value,email:e,telefone:$('#ct').value,crm:$('#cr').value,uf:$('#cu').value,senha:sn,aceite:$('#ca').checked});
+ const j=await api('/api/login',{email:e,senha:sn});me={...j,hospitais:[]};Object.assign(me,await api('/api/me'));view='painel';render()}catch(e){$('#m').innerHTML=msg(e.message)}}
 async function sair(){await api('/api/logout',{});me=null;render()}
 function go(v,k){view=v;if(!k)render();else({painel,pacientes,auditoria,repasse,hospitais})[v]()}
 async function painel(){const [r,hs]=await Promise.all([api('/api/painel'),api('/api/hospitais')]);const sel=window._hf||'';

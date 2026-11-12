@@ -4,7 +4,12 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="description" content="MedNexo: prontuário eletrônico multi-hospital para médicos que acompanham pacientes internados.">
-<style>html{color-scheme:light dark}body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}</style>
+<style>html{color-scheme:light dark}body{margin:0;font-size:14px}img{max-width:100%}[hidden]{display:none!important}:root{padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}.plans{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px}.plan{position:relative;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;display:flex;flex-direction:column;gap:10px}.plan.hl{border:2px solid var(--blue);box-shadow:0 18px 50px -28px rgba(21,101,216,.6)}.plan h3{font-size:22px;color:var(--navy)}.plan .pl{color:var(--mut);margin:0}.plan ul{margin:6px 0 14px;padding-left:18px;color:var(--fg);flex:1}.tagp{position:absolute;top:-12px;right:18px;background:linear-gradient(90deg,var(--blue),var(--teal));color:#fff;font:700 12px var(--f-body);padding:4px 12px;border-radius:20px}
+.fc{max-width:620px;background:var(--card);border:1px solid var(--line);border-radius:16px;padding:24px;display:grid;gap:14px;box-shadow:0 18px 50px -28px rgba(11,42,107,.4)}.fg label,.ck{font:500 14px var(--f-body);color:var(--mut)}.fg input{width:100%;min-height:46px;margin-top:4px;padding:0 12px;border:1.5px solid var(--line);border-radius:10px;background:var(--bg);color:var(--fg);font:16px var(--f-body)}.fg input:focus{outline:3px solid var(--teal);outline-offset:1px;border-color:var(--blue)}.fg.row{display:flex;gap:12px}.fg.row>div:first-child{flex:1}.ck{display:flex;gap:10px;align-items:flex-start}.ck input{margin-top:4px;width:18px;height:18px}.ck a{color:var(--blue)}
+#f_msg{min-height:20px;font-size:14px}#f_msg.err{color:var(--bad)}#f_msg.ok{color:var(--ok)}.priv{max-width:760px;color:var(--mut)}.priv b{color:var(--fg)}
+@media(max-width:860px){.plans{grid-template-columns:1fr}}
+section{scroll-margin-top:84px}.bar .btn{white-space:nowrap}
+</style>
 <title>MedNexo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
@@ -134,8 +139,8 @@ footer .brand{font-size:20px}footer .brand img{height:36px}
 <header>
   <div class="bar wrap">
     <a class="brand" href="#topo" aria-label="MedNexo, início"><img src="symbol.png" alt=""><span><span class="a">Med</span><span class="b">Nexo</span></span></a>
-    <nav aria-label="Seções"><a href="#recursos">Recursos</a><a href="#inteligencia">Inteligência</a><a href="#modulos">Módulos</a><a href="#acesso">Acesso</a></nav>
-    <a class="btn pri" href="http://76.13.239.123:8086" target="_blank" rel="noopener">Entrar no ambiente de teste</a>
+    <nav aria-label="Seções"><a href="#recursos">Recursos</a><a href="#inteligencia">Inteligência</a><a href="#modulos">Módulos</a><a href="#planos">Planos</a><a href="#contratar">Contratar</a></nav>
+    <a class="btn pri" href="#contratar">Teste grátis</a>
   </div>
 </header>
 
@@ -147,7 +152,7 @@ footer .brand{font-size:20px}footer .brand img{height:36px}
       <h1>Seus pacientes em vários hospitais, num só prontuário.</h1>
       <p class="lead">O MedNexo reúne evolução, prescrição, exames, documentos e repasse do médico que acompanha pacientes internados em mais de um hospital, com registro assinado e trilha de auditoria.</p>
       <div class="cta">
-        <a class="btn pri" href="http://76.13.239.123:8086" target="_blank" rel="noopener">Entrar no ambiente de teste</a>
+        <a class="btn pri" href="#contratar">Teste grátis por 14 dias</a>
         <a class="btn" href="#recursos">Ver recursos</a>
       </div>
       <p class="note">O ambiente de teste usa somente dados fictícios. Não digite dados reais de pacientes.</p>
@@ -266,27 +271,63 @@ footer .brand{font-size:20px}footer .brand img{height:36px}
 </div></div>
 
 <div class="wrap">
-<section id="acesso">
-  <div class="sh"><div class="eyebrow">Acesso</div><h2>Como começar.</h2><p>O MedNexo está em fase de testes. Valores e condições comerciais ainda não foram definidos.</p></div>
-  <div class="acc">
-    <div class="step"><h3>1. Entre no ambiente de teste</h3><p>Use a tela de login do ambiente de teste. Ele traz somente dados fictícios.</p></div>
-    <div class="step"><h3>2. Cadastre seus hospitais</h3><p>Informe os dados reais de cada hospital, suas unidades e leitos.</p></div>
-    <div class="step"><h3>3. Acompanhe seus pacientes</h3><p>Cadastre o paciente, escolha o hospital e registre evolução, prescrição e exames.</p></div>
+<section id="planos">
+  <div class="sh"><div class="eyebrow">Planos</div><h2>Do consultório à rede de hospitais.</h2><p>Cada contratante recebe um ambiente <b>próprio e isolado</b>. Valores sob consulta: comece pelo teste grátis e conversamos sobre o plano ideal.</p></div>
+  <div class="plans">
+    <div class="plan"><h3>Individual</h3><p class="pl">Para o médico que acompanha pacientes internados em vários hospitais.</p><ul><li>1 médico administrador</li><li>Hospitais, unidades e leitos ilimitados no cadastro</li><li>Evolução, prescrição, exames e documentos em PDF</li></ul><a class="btn" href="#contratar">Valor sob consulta</a></div>
+    <div class="plan hl"><span class="tagp">Mais indicado</span><h3>Equipe</h3><p class="pl">Para grupos que dividem pacientes e plantões.</p><ul><li>Médicos assistentes, enfermagem e administrativo</li><li>Perfis de acesso por função</li><li>Acesso por hospital e trilha de auditoria</li></ul><a class="btn pri" href="#contratar">Valor sob consulta</a></div>
+    <div class="plan"><h3>Clínica</h3><p class="pl">Para empresas médicas com contratos e repasse.</p><ul><li>Tudo do plano Equipe</li><li>Gestão de repasse e faturamento</li><li>Perfil de auditor</li></ul><a class="btn" href="#contratar">Valor sob consulta</a></div>
+  </div>
+</section>
+
+<section id="contratar">
+  <div class="sh"><div class="eyebrow">Contratar</div><h2>Comece o teste grátis de 14 dias.</h2><p>Crie seu ambiente agora. Seus hospitais e pacientes ficam visíveis só para a sua organização. Ao final do teste, seus dados são preservados até a decisão pela contratação.</p></div>
+  <form id="fc" class="fc" novalidate>
+    <div class="fg"><label for="f_cl">Consultório / clínica</label><input id="f_cl" required autocomplete="organization"></div>
+    <div class="fg"><label for="f_no">Seu nome completo</label><input id="f_no" required autocomplete="name"></div>
+    <div class="fg"><label for="f_em">E-mail</label><input id="f_em" type="email" required autocomplete="email"></div>
+    <div class="fg"><label for="f_te">Telefone / WhatsApp (opcional)</label><input id="f_te" type="tel" autocomplete="tel"></div>
+    <div class="fg row"><div><label for="f_cr">CRM (números)</label><input id="f_cr" inputmode="numeric" required></div><div style="max-width:90px"><label for="f_uf">UF</label><input id="f_uf" maxlength="2" required style="text-transform:uppercase"></div></div>
+    <div class="fg"><label for="f_se">Senha (10+ caracteres)</label><input id="f_se" type="password" required autocomplete="new-password"></div>
+    <label class="ck"><input id="f_ac" type="checkbox"><span>Li e aceito os <a href="#privacidade">Termos de Uso e a Política de Privacidade</a>. Sou o responsável pelos dados dos meus pacientes.</span></label>
+    <div id="f_msg" role="status" aria-live="polite"></div>
+    <button class="btn pri" type="submit" id="f_bt">Criar meu ambiente de teste</button>
+    <p class="note">Ambiente de avaliação: use somente dados fictícios até a contratação.</p>
+  </form>
+</section>
+
+<section id="privacidade">
+  <div class="sh"><div class="eyebrow">Privacidade</div><h2>Termos e privacidade (versão preliminar).</h2></div>
+  <div class="priv">
+    <p><b>Quem controla os dados.</b> O médico ou a clínica que contrata é o controlador dos dados dos pacientes; o MedNexo atua como operador, tratando os dados apenas para prestar o serviço.</p>
+    <p><b>Isolamento.</b> Cada organização tem seus dados separados no banco, com controle de acesso por função e por hospital.</p>
+    <p><b>Rastreabilidade.</b> Acessos e alterações são registrados em trilha de auditoria. Registros assinados não são apagados: correções entram como adendo.</p>
+    <p><b>Voz.</b> O ditado usa o reconhecimento de voz do navegador, e o MedNexo não armazena áudio.</p>
+    <p class="note">Este texto é preliminar e será substituído pelos Termos de Uso e pela Política de Privacidade definitivos, com revisão jurídica, antes da operação comercial.</p>
   </div>
 </section>
 
 <section class="final">
   <h2>Seu paciente conectado. Sua gestão integrada. Seu cuidado contínuo.</h2>
-  <p>Conheça o sistema no ambiente de teste. Antes de usar com pacientes reais, o servidor passa a operar com HTTPS.</p>
-  <div class="cta"><a class="btn pri" href="http://76.13.239.123:8086" target="_blank" rel="noopener">Entrar no ambiente de teste</a></div>
+  <p>Crie seu ambiente de teste em minutos, ou entre com a conta que você já tem.</p>
+  <div class="cta"><a class="btn pri" href="#contratar">Teste grátis por 14 dias</a><a class="btn" href="http://76.13.239.123:8086" target="_blank" rel="noopener">Já tenho conta</a></div>
 </section>
 </div>
 </main>
-
 <footer>
   <a class="brand" href="#topo"><img src="symbol.png" alt=""><span><span class="a">Med</span><span class="b">Nexo</span></span></a>
   <span>Seu paciente conectado. Sua gestão integrada. Seu cuidado contínuo.</span>
-  <span><a href="#recursos">Recursos</a> · <a href="#inteligencia">Inteligência</a> · <a href="#modulos">Módulos</a> · <a href="#acesso">Acesso</a></span>
+  <span><a href="#recursos">Recursos</a> · <a href="#inteligencia">Inteligência</a> · <a href="#modulos">Módulos</a> · <a href="#planos">Planos</a> · <a href="#contratar">Contratar</a></span>
 </footer>
+<script>
+(function(){var f=document.getElementById('fc'),m=document.getElementById('f_msg'),bt=document.getElementById('f_bt'),APP='http://76.13.239.123:8086';
+function v(i){return document.getElementById(i).value}
+f.addEventListener('submit',function(e){e.preventDefault();m.className='';m.textContent='';bt.disabled=true;
+ fetch('/api/contratar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clinica:v('f_cl'),nome:v('f_no'),email:v('f_em'),telefone:v('f_te'),crm:v('f_cr'),uf:v('f_uf'),senha:v('f_se'),aceite:document.getElementById('f_ac').checked})})
+ .then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j}})}).then(function(x){bt.disabled=false;
+  if(!x.ok){m.className='err';m.textContent=x.j.erro||'Não foi possível criar o ambiente.';return}
+  f.reset();m.className='ok';m.innerHTML='Ambiente criado! Seu teste de '+x.j.teste_dias+' dias começou. <a href="'+APP+'" target="_blank" rel="noopener"><b>Entrar no sistema</b></a> com o e-mail e a senha que você acabou de definir.'})
+ .catch(function(){bt.disabled=false;m.className='err';m.textContent='Falha de conexão. Tente novamente.'})})})();
+</script>
 </body>
 </html>
