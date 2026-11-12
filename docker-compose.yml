@@ -24,5 +24,12 @@ services:
       PW_ADM: ${PW_ADM:?defina PW_ADM}
       PW_AUD: ${PW_AUD:?defina PW_AUD}
       CODIGO_CONVITE: ${CODIGO_CONVITE:-}
+  web:
+    build:
+      context: https://github.com/pepoabreu/mednexo-teste.git#main
+      dockerfile: Dockerfile.site
+    restart: unless-stopped
+    ports:
+      - "8085:80"
 volumes:
   dbdata:

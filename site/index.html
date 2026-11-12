@@ -1,0 +1,243 @@
+<title>MedNexo</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+<style>
+/* Layout: página única em faixas (topo fixo, hero com prévia do painel, recursos alternados, módulos, acesso, rodapé). Paleta tirada da logo: azul-marinho, azul e turquesa. */
+:root{
+  --bg:#ffffff; --bg2:#f2f6fb; --card:#ffffff; --fg:#0b1f45; --mut:#4b5f80; --line:#d8e2f0;
+  --navy:#0b2a6b; --blue:#1565d8; --teal:#14b8b0; --accent:#1565d8; --accent-ink:#ffffff;
+  --ok:#1b7a4b; --okbg:#e6f5ec; --warn:#8a5300; --warnbg:#fff3de; --bad:#a3261c; --badbg:#fdeceb;
+  --f-display:'Montserrat','Segoe UI',system-ui,sans-serif; --f-body:'Inter','Segoe UI',system-ui,sans-serif;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#08152e; --bg2:#0d1e40; --card:#10264d; --fg:#e8eefb; --mut:#9db0d3; --line:#223a68;
+  --navy:#9cc0ff; --blue:#4d94ff; --teal:#2dd4cb; --accent:#4d94ff; --accent-ink:#06142e;
+  --ok:#55d08d; --okbg:#10361f; --warn:#ffc267; --warnbg:#3a2a0a; --bad:#ff8b80; --badbg:#3d1512; color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#08152e; --bg2:#0d1e40; --card:#10264d; --fg:#e8eefb; --mut:#9db0d3; --line:#223a68;
+  --navy:#9cc0ff; --blue:#4d94ff; --teal:#2dd4cb; --accent:#4d94ff; --accent-ink:#06142e;
+  --ok:#55d08d; --okbg:#10361f; --warn:#ffc267; --warnbg:#3a2a0a; --bad:#ff8b80; --badbg:#3d1512; color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{background:var(--bg);color:var(--fg);font:16px/1.6 var(--f-body);padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:0}
+body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);background:var(--bg);z-index:30}
+a{color:inherit}
+h1,h2,h3{font-family:var(--f-display);line-height:1.15;text-wrap:balance;margin:0}
+.wrap{max-width:1120px;margin:0 auto}
+/* topo */
+header{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:var(--bg);border-bottom:1px solid var(--line);margin-inline:calc(50% - 50vw);padding-inline:max(16px,calc(50vw - 560px))}
+.bar{display:flex;align-items:center;gap:20px;height:68px}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font:800 24px var(--f-display);letter-spacing:-.01em}
+.brand img{height:46px;width:auto;background:#fff;border-radius:10px}
+.brand .a{color:var(--navy)}.brand .b{background:linear-gradient(90deg,var(--blue),var(--teal));-webkit-background-clip:text;background-clip:text;color:transparent}
+nav{display:flex;gap:4px;flex:1}
+nav a{padding:8px 12px;border-radius:8px;text-decoration:none;color:var(--mut);font-weight:500;font-size:15px}
+nav a:hover{color:var(--fg);background:var(--bg2)}
+.btn{display:inline-flex;align-items:center;justify-content:center;min-height:44px;padding:0 20px;border-radius:10px;font:600 15px var(--f-body);text-decoration:none;border:1.5px solid var(--accent);color:var(--accent);background:transparent;cursor:pointer}
+.btn.pri{background:var(--accent);color:var(--accent-ink)}
+.btn:focus-visible,nav a:focus-visible,.brand:focus-visible{outline:3px solid var(--teal);outline-offset:2px}
+@media(max-width:760px){nav{display:none}.bar{justify-content:space-between}.bar .btn.hide-s{display:none}}
+/* hero */
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:48px;align-items:center;padding-block:64px 56px}
+.eyebrow{font:600 13px var(--f-body);letter-spacing:.12em;text-transform:uppercase;color:var(--blue)}
+.hero h1{font-size:clamp(30px,4.4vw,50px);font-weight:800;color:var(--navy);margin-top:14px;letter-spacing:-.02em}
+.hero p.lead{font-size:18px;color:var(--mut);margin:18px 0 28px;max-width:54ch}
+.cta{display:flex;gap:12px;flex-wrap:wrap}
+.note{font-size:13px;color:var(--mut);margin-top:14px;max-width:56ch}
+.lockup{background:#fff;border-radius:20px;border:1px solid var(--line);padding:14px;box-shadow:0 18px 50px -24px rgba(11,42,107,.35)}
+.lockup img{display:block;width:100%;height:auto;border-radius:12px}
+@media(max-width:860px){.hero{grid-template-columns:1fr;gap:32px;padding-block:40px}}
+/* faixa de pilares */
+.pillars{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));border-block:1px solid var(--line);margin-inline:calc(50% - 50vw);padding-inline:max(16px,calc(50vw - 560px));background:var(--bg2)}
+.pillars div{padding:22px 14px;text-align:center;font:700 13px var(--f-display);letter-spacing:.06em;text-transform:uppercase;color:var(--navy);border-left:1px solid var(--line)}
+.pillars div:first-child{border-left:0}
+.pillars small{display:block;font:400 13px var(--f-body);letter-spacing:0;text-transform:none;color:var(--mut);margin-top:4px}
+.pillars .soon{color:var(--mut)}
+@media(max-width:860px){.pillars{grid-template-columns:repeat(2,minmax(0,1fr))}.pillars div{border-left:0;border-top:1px solid var(--line)}}
+section{padding-block:72px}
+.sh{max-width:62ch;margin-bottom:40px}
+.sh h2{font-size:clamp(26px,3.2vw,36px);font-weight:800;color:var(--navy);margin-top:10px;letter-spacing:-.015em}
+.sh p{color:var(--mut);margin:12px 0 0}
+/* recursos */
+.feat{display:grid;grid-template-columns:1fr 1fr;gap:48px;align-items:center;margin-bottom:64px}
+.feat:nth-child(even) .txt{order:2}
+.feat h3{font-size:24px;font-weight:700;color:var(--navy)}
+.feat ul{padding:0;margin:16px 0 0;list-style:none;display:grid;gap:10px}
+.feat li{display:grid;grid-template-columns:22px 1fr;gap:10px;color:var(--fg)}
+.feat li::before{content:"";width:18px;height:18px;margin-top:4px;border-radius:50%;background:var(--teal);mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath d='M4 9.5l3.2 3L14 5.5' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath d='M4 9.5l3.2 3L14 5.5' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;background:var(--teal)}
+@media(max-width:860px){.feat{grid-template-columns:1fr;gap:24px}.feat:nth-child(even) .txt{order:0}}
+/* mock-ups (exemplos ilustrativos) */
+.mock{background:var(--card);border:1px solid var(--line);border-radius:16px;overflow:hidden;font-size:13px;min-width:0}
+.mock .mh{display:flex;justify-content:space-between;gap:8px;padding:10px 14px;background:var(--bg2);border-bottom:1px solid var(--line);font-weight:600;color:var(--navy)}
+.mock .mh span:last-child{font-weight:400;color:var(--mut)}
+.mrow{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:10px;align-items:center;padding:10px 14px;border-top:1px solid var(--line)}
+.mrow:first-of-type{border-top:0}
+.mrow b{font-weight:600}.mrow .s{color:var(--mut);font-size:12px}
+.pill{display:inline-block;padding:2px 9px;border-radius:999px;font-size:12px;font-weight:600;white-space:nowrap}
+.p-ok{background:var(--okbg);color:var(--ok)}.p-w{background:var(--warnbg);color:var(--warn)}.p-b{background:var(--badbg);color:var(--bad)}.p-i{background:var(--bg2);color:var(--blue);border:1px solid var(--line)}
+.mock .body{padding:14px;display:grid;gap:10px}
+.mock .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:var(--mut);font-weight:600}
+.mock .alerta{border:1px solid;border-radius:10px;padding:10px 12px}
+.al-g{border-color:var(--bad);background:var(--badbg)}.al-i{border-color:var(--line);background:var(--bg2)}
+.mock code{font:12px ui-monospace,Menlo,Consolas,monospace;color:var(--mut);word-break:break-all}
+.cap{font-size:12px;color:var(--mut);margin-top:8px}
+/* módulos */
+.mods{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:14px}
+.mod{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:18px;min-width:0}
+.mod h3{font-size:16px;font-weight:700;color:var(--navy);display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.mod p{margin:8px 0 0;color:var(--mut);font-size:14px}
+.mod.soon{background:transparent;border-style:dashed}
+@media(max-width:980px){.mods{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:560px){.mods{grid-template-columns:1fr}}
+.bg2{background:var(--bg2);margin-inline:calc(50% - 50vw);padding-inline:max(16px,calc(50vw - 560px))}
+/* acesso */
+.acc{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+.step{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:22px;min-width:0}
+.step h3{font-size:17px;font-weight:700;color:var(--navy)}.step p{color:var(--mut);margin:8px 0 0;font-size:15px}
+@media(max-width:860px){.acc{grid-template-columns:1fr}}
+.final{text-align:center;padding-block:80px}
+.final h2{font-size:clamp(26px,3.6vw,40px);font-weight:800;color:var(--navy);max-width:22ch;margin:0 auto}
+.final p{color:var(--mut);max-width:56ch;margin:16px auto 28px}
+.final .cta{justify-content:center}
+footer{border-top:1px solid var(--line);margin-inline:calc(50% - 50vw);padding:28px max(16px,calc(50vw - 560px));display:flex;gap:16px 32px;flex-wrap:wrap;align-items:center;justify-content:space-between;color:var(--mut);font-size:14px}
+footer .brand{font-size:20px}footer .brand img{height:36px}
+@media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+</style>
+
+<header>
+  <div class="bar wrap">
+    <a class="brand" href="#topo" aria-label="MedNexo, início"><img src="symbol.png" alt=""><span><span class="a">Med</span><span class="b">Nexo</span></span></a>
+    <nav aria-label="Seções"><a href="#recursos">Recursos</a><a href="#modulos">Módulos</a><a href="#acesso">Acesso</a></nav>
+    <a class="btn pri" href="http://76.13.239.123:8086" target="_blank" rel="noopener">Entrar no ambiente de teste</a>
+  </div>
+</header>
+
+<main id="topo">
+<div class="wrap">
+  <div class="hero">
+    <div>
+      <div class="eyebrow">Prontuário eletrônico multi-hospital</div>
+      <h1>Seus pacientes em vários hospitais, num só prontuário.</h1>
+      <p class="lead">O MedNexo reúne evolução, prescrição, exames, documentos e repasse do médico que acompanha pacientes internados em mais de um hospital, com registro assinado e trilha de auditoria.</p>
+      <div class="cta">
+        <a class="btn pri" href="http://76.13.239.123:8086" target="_blank" rel="noopener">Entrar no ambiente de teste</a>
+        <a class="btn" href="#recursos">Ver recursos</a>
+      </div>
+      <p class="note">O ambiente de teste usa somente dados fictícios. Não digite dados reais de pacientes.</p>
+    </div>
+    <div class="lockup"><img src="lockup.png" alt="Logo MedNexo: cruz azul com um médico e a frase Seu paciente conectado, sua gestão integrada, seu cuidado contínuo" width="1000" height="357"></div>
+  </div>
+</div>
+
+<div class="pillars" aria-label="Pilares">
+  <div>Múltiplos hospitais<small>Hospitais, unidades e leitos seus</small></div>
+  <div>Histórico completo<small>Linha do tempo do paciente</small></div>
+  <div>Painel do dia<small>Pendências e risco por paciente</small></div>
+  <div>Segurança de dados<small>Perfis, auditoria, integridade</small></div>
+  <div class="soon">Inteligência em saúde<small>Em breve</small></div>
+</div>
+
+<div class="wrap">
+<section id="recursos">
+  <div class="sh"><div class="eyebrow">Recursos</div><h2>Do cadastro do hospital ao recebimento do repasse.</h2><p>O que o sistema já faz hoje, tela por tela. As telas abaixo são exemplos ilustrativos, com dados fictícios.</p></div>
+
+  <div class="feat">
+    <div class="txt"><h3>Vários hospitais, um painel</h3>
+      <ul><li>Você cadastra cada hospital com os dados reais: CNPJ, CNES, endereço, unidades e leitos.</li><li>No cadastro do paciente aparecem todos os seus hospitais para escolher.</li><li>O painel mostra os internados por hospital, com pendências de evolução e nível de risco.</li></ul></div>
+    <div><div class="mock" role="img" aria-label="Exemplo de painel de internados com dados fictícios">
+      <div class="mh"><span>Hospital Exemplo Um · Enfermaria A</span><span>2 internados</span></div>
+      <div class="mrow"><b>101</b><div><b>Paciente A. S.</b><div class="s">PAC-000012 · voluntária</div></div><span class="pill p-i">evoluído hoje</span></div>
+      <div class="mrow"><b>103</b><div><b>Paciente M. R.</b><div class="s">PAC-000009 · involuntária</div></div><span class="pill p-w">evolução pendente</span></div>
+      <div class="mh" style="border-top:1px solid var(--line)"><span>Hospital Exemplo Dois · Ala Psiquiátrica</span><span>1 internado</span></div>
+      <div class="mrow"><b>02</b><div><b>Paciente J. P.</b><div class="s">PAC-000004 · voluntária</div></div><span class="pill p-ok">risco baixo</span></div></div>
+      <div class="cap">Exemplo ilustrativo, dados fictícios.</div></div>
+  </div>
+
+  <div class="feat">
+    <div class="txt"><h3>Prontuário psiquiátrico completo</h3>
+      <ul><li>Anamnese, exame do estado mental e avaliação de risco, com o nível de risco decidido pelo médico.</li><li>Diagnósticos por CID, com situação, data e responsável.</li><li>Evolução assinada não é editada: correções entram como adendo.</li></ul></div>
+    <div><div class="mock" role="img" aria-label="Exemplo de evolução assinada com dados fictícios">
+      <div class="mh"><span>Evolução · 10/11 09:10</span><span class="pill p-ok">assinada · íntegra</span></div>
+      <div class="body"><div><div class="k">Subjetivo</div>Refere melhora do sono. Nega ideação suicida.</div><div><div class="k">Conduta</div>Manter esquema atual. Reavaliar amanhã.</div><div><div class="k">Integridade (SHA-256)</div><code>9f2c…a41e</code></div></div></div>
+      <div class="cap">Exemplo ilustrativo, dados fictícios.</div></div>
+  </div>
+
+  <div class="feat">
+    <div class="txt"><h3>Prescrição com validações</h3>
+      <ul><li>Medicamentos vêm do catálogo que você cadastra, sem doses inventadas pelo sistema.</li><li>Alertas de alergia não avaliada, duplicidade de princípio ativo e validade.</li><li>Alerta grave exige justificativa médica antes da assinatura.</li><li>Receita simples no sistema. Controlados seguem o fluxo oficial externo.</li></ul></div>
+    <div><div class="mock" role="img" aria-label="Exemplo de validação de prescrição com dados fictícios">
+      <div class="mh"><span>Validação da prescrição</span><span>2 itens</span></div>
+      <div class="body"><div class="alerta al-g"><b>Grave · alergias não avaliadas</b><div>Registre as alergias ou declare “sem alergias conhecidas”.</div></div><div class="alerta al-i"><b>Informativa · validade</b><div>Prescrição hospitalar vence em 24 h.</div></div></div></div>
+      <div class="cap">Exemplo ilustrativo, dados fictícios.</div></div>
+  </div>
+
+  <div class="feat">
+    <div class="txt"><h3>Exames, documentos e PDF</h3>
+      <ul><li>Exames laboratoriais e de imagem separados, com foto da câmera ou upload de PDF e imagem.</li><li>Peso, altura e IMC do paciente registrados no prontuário.</li><li>Atestado, relatório, parecer, declaração e encaminhamento em PDF com código de validação.</li><li>Impressão e compartilhamento por WhatsApp ou Google Drive, com registro de quem enviou, para quem e por quê.</li></ul></div>
+    <div><div class="mock" role="img" aria-label="Exemplo de documento com opções de PDF e compartilhamento">
+      <div class="mh"><span>Atestado médico</span><span class="pill p-ok">assinado</span></div>
+      <div class="body"><div>Afastamento recomendado: 3 dia(s).</div><div><div class="k">Código de validação</div><code>279B-E642-2564</code></div><div style="display:flex;gap:8px;flex-wrap:wrap"><span class="pill p-i">Visualizar PDF</span><span class="pill p-i">Imprimir</span><span class="pill p-i">WhatsApp</span><span class="pill p-i">Google Drive</span></div></div></div>
+      <div class="cap">Exemplo ilustrativo, dados fictícios.</div></div>
+  </div>
+
+  <div class="feat">
+    <div class="txt"><h3>Repasse e contas a receber</h3>
+      <ul><li>Regras de valor por hospital e por tipo de atendimento.</li><li>Visitas geradas a partir das evoluções assinadas, sem duplicar.</li><li>Faturamento, recebimento parcial, glosa e aging das contas a receber.</li><li>Visível só para o médico dono dos lançamentos.</li></ul></div>
+    <div><div class="mock" role="img" aria-label="Exemplo de contas a receber com valores fictícios">
+      <div class="mh"><span>Contas a receber · competência 11/2026</span><span>valores fictícios</span></div>
+      <div class="mrow"><b>Nov</b><div><b>Hospital Exemplo Um</b><div class="s">12 visitas</div></div><span class="pill p-w">a vencer</span></div>
+      <div class="mrow"><b>Out</b><div><b>Hospital Exemplo Dois</b><div class="s">9 visitas</div></div><span class="pill p-b">vencido</span></div>
+      <div class="mrow"><b>Set</b><div><b>Hospital Exemplo Um</b><div class="s">14 visitas</div></div><span class="pill p-ok">recebido</span></div></div>
+      <div class="cap">Exemplo ilustrativo, sem valores reais.</div></div>
+  </div>
+</section>
+</div>
+
+<div class="bg2"><div class="wrap">
+<section id="modulos">
+  <div class="sh"><div class="eyebrow">Módulos</div><h2>O que já está pronto e o que vem a seguir.</h2></div>
+  <div class="mods">
+    <div class="mod"><h3>Multi-hospital</h3><p>Hospitais, unidades, leitos e vínculos do médico.</p></div>
+    <div class="mod"><h3>Pacientes</h3><p>Cadastro, internação e linha do tempo.</p></div>
+    <div class="mod"><h3>Anamnese</h3><p>História psiquiátrica estruturada.</p></div>
+    <div class="mod"><h3>Estado mental</h3><p>Exame em 15 domínios.</p></div>
+    <div class="mod"><h3>Risco</h3><p>13 dimensões; nível definido pelo médico.</p></div>
+    <div class="mod"><h3>Diagnósticos</h3><p>CID com situação e responsável.</p></div>
+    <div class="mod"><h3>Evolução</h3><p>Rascunho, assinatura e adendos.</p></div>
+    <div class="mod"><h3>Prescrição</h3><p>Catálogo próprio e alertas.</p></div>
+    <div class="mod"><h3>Exames</h3><p>Laboratório e imagem, foto ou arquivo.</p></div>
+    <div class="mod"><h3>Documentos e PDF</h3><p>Atestados, relatórios, receitas simples.</p></div>
+    <div class="mod"><h3>Repasse</h3><p>Lançamentos, glosas e recebimentos.</p></div>
+    <div class="mod"><h3>Auditoria</h3><p>Trilha encadeada por hash e verificação.</p></div>
+    <div class="mod soon"><h3>Assinatura ICP-Brasil <span class="pill p-i">Em breve</span></h3><p>Para receitas controladas.</p></div>
+    <div class="mod soon"><h3>Login em duas etapas <span class="pill p-i">Em breve</span></h3><p>Camada extra de acesso.</p></div>
+    <div class="mod soon"><h3>Indicadores <span class="pill p-i">Em breve</span></h3><p>Visão gerencial por hospital.</p></div>
+    <div class="mod soon"><h3>Inteligência em saúde <span class="pill p-i">Em breve</span></h3><p>Apoio à decisão, sempre revisado pelo médico.</p></div>
+  </div>
+</section>
+</div></div>
+
+<div class="wrap">
+<section id="acesso">
+  <div class="sh"><div class="eyebrow">Acesso</div><h2>Como começar.</h2><p>O MedNexo está em fase de testes. Valores e condições comerciais ainda não foram definidos.</p></div>
+  <div class="acc">
+    <div class="step"><h3>1. Entre no ambiente de teste</h3><p>Use a tela de login do ambiente de teste. Ele traz somente dados fictícios.</p></div>
+    <div class="step"><h3>2. Cadastre seus hospitais</h3><p>Informe os dados reais de cada hospital, suas unidades e leitos.</p></div>
+    <div class="step"><h3>3. Acompanhe seus pacientes</h3><p>Cadastre o paciente, escolha o hospital e registre evolução, prescrição e exames.</p></div>
+  </div>
+</section>
+
+<section class="final">
+  <h2>Seu paciente conectado. Sua gestão integrada. Seu cuidado contínuo.</h2>
+  <p>Conheça o sistema no ambiente de teste. Antes de usar com pacientes reais, o servidor passa a operar com HTTPS.</p>
+  <div class="cta"><a class="btn pri" href="http://76.13.239.123:8086" target="_blank" rel="noopener">Entrar no ambiente de teste</a></div>
+</section>
+</div>
+</main>
+
+<footer>
+  <a class="brand" href="#topo"><img src="symbol.png" alt=""><span><span class="a">Med</span><span class="b">Nexo</span></span></a>
+  <span>Seu paciente conectado. Sua gestão integrada. Seu cuidado contínuo.</span>
+  <span><a href="#recursos">Recursos</a> · <a href="#modulos">Módulos</a> · <a href="#acesso">Acesso</a></span>
+</footer>
