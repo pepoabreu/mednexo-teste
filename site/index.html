@@ -12,7 +12,7 @@ section{scroll-margin-top:84px}.bar .btn{white-space:nowrap}
 </style>
 <title>MedNexo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Montserrat:wght@600;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Montserrat:wght@600;700&family=Newsreader:opsz,wght@6..72,400;6..72,500;6..72,600&display=swap" rel="stylesheet">
 <style>
 /* Layout: página única em faixas (topo fixo, hero com prévia do painel, recursos alternados, módulos, acesso, rodapé). Paleta tirada da logo: azul-marinho, azul e turquesa. */
 :root{
@@ -132,6 +132,45 @@ footer .brand{font-size:20px}footer .brand img{height:36px}
 .ia .cap{color:#c3d6ff}
 @media(max-width:900px){.iagrid{grid-template-columns:1fr}.iabox{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
+/* ===== Refinamento: porcelana azulada no lugar do branco puro, titulos em serifa, hairlines e sombras azuladas ===== */
+:root{--bg:#f3f6fb;--bg2:#e9f0fa;--card:#fbfcfe;--fg:#0a1f4d;--mut:#4f6283;--line:#d9e2f0;--navy:#0a2460;--f-serif:'Newsreader','Georgia',serif;--sh:0 1px 2px rgba(10,36,96,.06),0 12px 32px -18px rgba(10,36,96,.28)}
+body{background:radial-gradient(1100px 520px at 85% -120px,#dfe9fa 0%,transparent 70%),var(--bg)}
+header{background:rgba(243,246,251,.86);backdrop-filter:saturate(1.4) blur(10px);-webkit-backdrop-filter:saturate(1.4) blur(10px)}
+.brand img{background:var(--card);box-shadow:0 0 0 1px var(--line)}
+h1,.sh h2,.final h2{font-family:var(--f-serif);font-weight:500;letter-spacing:-.012em;line-height:1.12}
+.hero h1{font-size:clamp(34px,4.8vw,56px);color:var(--navy);font-weight:500}
+.sh h2{font-size:clamp(28px,3.4vw,40px)}.final h2{font-size:clamp(28px,3.8vw,44px);max-width:24ch}
+.feat h3,.plan h3,.mod h3,.step h3{font-family:var(--f-serif);font-weight:600;letter-spacing:-.005em}
+.feat h3{font-size:26px}.plan h3{font-size:26px}
+.eyebrow{text-transform:none;letter-spacing:.01em;font:600 14px var(--f-body);color:var(--blue);display:flex;align-items:center;gap:10px}
+.eyebrow::before{content:"";width:22px;height:1.5px;background:var(--blue);opacity:.6}
+.pillars{background:linear-gradient(180deg,#eef3fb,#e7eef9)}
+.pillars div{text-transform:none;letter-spacing:.01em;font:600 15px var(--f-display)}
+.btn{border-radius:999px;min-height:46px;padding:0 24px;transition:background .2s,box-shadow .2s,color .2s}
+.btn.pri{background:linear-gradient(180deg,#1b6fe3,#1259c4);box-shadow:0 1px 0 rgba(255,255,255,.25) inset,0 8px 20px -10px rgba(21,101,216,.8)}
+.btn.pri:hover{background:linear-gradient(180deg,#1565d8,#0b2a6b)}
+.btn:not(.pri){background:rgba(255,255,255,.5)}.btn:not(.pri):hover{background:#fff}
+.lockup,.mock,.mod,.step,.plan,.fc{background:var(--card);border-color:var(--line);box-shadow:var(--sh)}
+.lockup{border-radius:22px;padding:18px}.lockup img{border-radius:14px}
+.mock{border-radius:18px}.mod,.step,.plan{border-radius:16px}.fc{border-radius:20px}
+.mock .mh{background:#eef3fb}
+.mod.soon{box-shadow:none;background:transparent}
+.plan.hl{border:1.5px solid var(--blue);box-shadow:0 0 0 6px rgba(21,101,216,.07),var(--sh)}
+.tagp{background:var(--navy);font-weight:600}
+.bg2{background:linear-gradient(180deg,#e9f0fa,#eef3fb)}
+#planos{background:linear-gradient(180deg,transparent,#e9f0fa 35%,#e9f0fa 80%,transparent);margin-inline:calc(50% - 50vw);padding-inline:max(16px,calc(50vw - 560px))}
+.ia{background:radial-gradient(900px 420px at 90% 0%,rgba(31,111,227,.55),transparent 65%),linear-gradient(160deg,#071a46 0%,#0a2460 55%,#0e3b82 100%)}
+.iacard{background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.16)}
+.ia .eyebrow{color:#a9c8ff}.ia .eyebrow::before{background:#a9c8ff}
+.iacard .tag{background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.3);color:#e4eeff}
+.fg input{background:#fff;border-color:#cdd9ea}.fg input:focus{border-color:var(--blue);box-shadow:0 0 0 4px rgba(21,101,216,.14);outline:none}
+.final{background:radial-gradient(700px 260px at 50% 0%,#dde8fa,transparent 70%)}
+footer{background:#eef3fb}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]) body{background:radial-gradient(1100px 520px at 85% -120px,#10305f 0%,transparent 70%),var(--bg)}
+:root:not([data-theme="light"]) header{background:rgba(8,21,46,.86)}:root:not([data-theme="light"]) .fg input{background:#0d1e40}
+:root:not([data-theme="light"]) .bg2,:root:not([data-theme="light"]) #planos,:root:not([data-theme="light"]) .pillars,:root:not([data-theme="light"]) footer,:root:not([data-theme="light"]) .final{background:var(--bg2)}
+:root:not([data-theme="light"]) .btn:not(.pri){background:transparent}:root:not([data-theme="light"]) .mock .mh{background:var(--bg2)}
+:root:not([data-theme="light"]) .eyebrow{color:var(--blue)}}
 </style>
 
 </head>
