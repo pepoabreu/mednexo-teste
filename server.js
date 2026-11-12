@@ -57,6 +57,7 @@ async function cadastro(req, res, b) {
 const clin = require('./clinico')(pool, { need, uuid });
 const rep = require('./repasse')(pool, { need, uuid });
 const docs = require('./documentos')(pool, { need, uuid }, clin);
+const ia = require('./ia')(pool, { need, uuid }, clin);
 const hosp = require('./hospitais')(pool, { need, uuid });
 const routes = {
   'GET /api/me': async (s, c) => ({ nome: s.nome, papel: s.papel,
@@ -105,7 +106,7 @@ const routes = {
     eventos: (await c.query(`SELECT a.seq, a.ocorrido_em, a.acao, a.entidade, u.nome_completo AS usuario FROM mednexo.auditoria_evento a LEFT JOIN mednexo.usuario u ON u.id = a.usuario_id ORDER BY a.seq DESC LIMIT 60`)).rows }),
 };
 
-Object.assign(routes, clin.routes, rep.routes, hosp.routes, docs.routes);
+Object.assign(routes, clin.routes, rep.routes, hosp.routes, docs.routes, ia.routes);
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x'); const key = `${req.method} ${url.pathname}`;
@@ -139,7 +140,7 @@ const server = http.createServer(async (req, res) => {
   if (!tem) { console.log('Aplicando schema MEDNEXO...'); await pool.raw(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8')); console.log('Schema aplicado.'); }
   await clin.migrar();
   await rep.migrar();
-  await hosp.migrar();
+  await hosp.migrar(); await ia.migrar();
   await seed(pool, process.env);
   server.listen(PORT, '0.0.0.0', () => console.log('MEDNEXO ouvindo em', PORT));
 })().catch(e => { console.error(e); process.exit(1); });

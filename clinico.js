@@ -94,7 +94,7 @@ module.exports = function (pool, { need, uuid }) {
     },
     // ---- exames (laboratório / imagem) com importação de arquivo
     'GET /api/exames': async (s, c, q) => (await c.query(`SELECT e.id, e.nome_exame, e.tipo, e.status, e.coletado_em, e.resultado_em, e.resultado_texto, e.resultado_alterado,
-        a.id AS arquivo_id, a.nome_original, a.mime_type, a.tamanho_bytes, encode(a.sha256,'hex') AS sha256, a.invalidado_em, a.motivo_invalidacao, u.nome_completo AS registrado_por
+        a.id AS arquivo_id, a.nome_original, a.mime_type, a.tamanho_bytes, encode(a.sha256,'hex') AS sha256, a.invalidado_em, a.motivo_invalidacao, u.nome_completo AS registrado_por, (SELECT count(*)::int FROM mednexo.ia_interacao ia WHERE ia.exame_id = e.id) AS analises
       FROM mednexo.exame e LEFT JOIN mednexo.arquivo a ON a.id = e.resultado_arquivo_id JOIN mednexo.usuario u ON u.id = e.registrado_por
       WHERE e.internacao_id = $1 ORDER BY COALESCE(e.resultado_em, e.solicitado_em) DESC`, [uuid(q.internacao_id)])).rows,
     'POST /api/exames': async (s, c, q, b, ctx) => {
