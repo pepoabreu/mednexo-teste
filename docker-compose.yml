@@ -31,5 +31,15 @@ services:
     restart: unless-stopped
     ports:
       - "8085:80"
+  tunel-app:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    depends_on: [app]
+    command: tunnel --no-autoupdate --url http://app:8080
+  tunel-site:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    depends_on: [web]
+    command: tunnel --no-autoupdate --url http://web:80
 volumes:
   dbdata:

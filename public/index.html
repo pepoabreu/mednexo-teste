@@ -29,6 +29,13 @@ button.p{background:var(--pri);color:#fff;border:0;padding:9px 16px;border-radiu
 .thumb{max-width:100%;max-height:70vh;border:1px solid var(--br);border-radius:6px}.drop{border:2px dashed var(--br);border-radius:10px;padding:16px;text-align:center;color:var(--mut)}
 .rg{display:flex;gap:10px;flex-wrap:wrap}.rg label{display:inline;margin:0;color:var(--tx)}.rg input{width:auto}.dom{border:1px solid var(--br);border-radius:8px;padding:8px;margin:6px 0}.sub{font-size:13px;color:var(--mut)}.tabs button.on2{background:var(--pri);color:#fff}
 .ovl{position:fixed;inset:0;background:#0009;display:flex;align-items:center;justify-content:center;z-index:50;padding:16px}.ovl .card{max-width:460px;width:100%;margin:0;max-height:92vh;overflow:auto}.sit{display:inline-block;padding:2px 8px;border-radius:999px;font-size:12px;font-weight:700;border:1px solid}.sit.previsto{background:#eef2f4;border-color:#9fb0b8}.sit.faturado,.sit.parcial{background:#dfeafb;border-color:#8db4e6;color:#1b4f8f}.sit.vencido,.sit.parcial_vencido{background:#fdeceb;border-color:#d98a83;color:#8e1b12}.sit.recebido{background:#ddf1e4;border-color:#86c59c;color:#1b5e36}.sit.glosado,.sit.cancelado{background:#fff1dc;border-color:#e8b25e;color:#7a4a00}.num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+
+.mic{position:fixed;right:max(16px,env(safe-area-inset-right,0px));bottom:max(16px,env(safe-area-inset-bottom,0px));z-index:40;display:flex;flex-direction:column;align-items:flex-end;gap:8px}
+.mic button{min-height:48px;padding:0 18px;border-radius:999px;border:0;background:var(--pri);color:#fff;font:600 15px system-ui,sans-serif;box-shadow:0 6px 20px #0004;cursor:pointer}
+.mic button.on{background:#b42318;animation:mp 1.4s infinite}
+@keyframes mp{50%{box-shadow:0 0 0 10px #b4231833}}
+.mic .st{max-width:min(320px,80vw);background:var(--card);border:1px solid var(--br);border-radius:10px;padding:8px 12px;font-size:13px;color:var(--tx);box-shadow:0 6px 20px #0003}
+@media (prefers-reduced-motion:reduce){.mic button.on{animation:none}}
 </style></head><body>
 <div class="aviso">⚠ Ambiente de TESTE sem HTTPS — use <b>somente dados fictícios</b>. Não digite dados reais de pacientes.</div>
 <div id="app"></div>
@@ -414,5 +421,34 @@ function addItemRec(){const i=window._rit++;const d=document.createElement('div'
  <label>Posologia*</label><input class="r_p" placeholder="1 comprimido pela manhã, por 30 dias"><label>Observações</label><input class="r_ob">`;$('#rc_i').appendChild(d)}
 async function salvarRec(as){try{const itens=[...document.querySelectorAll('.rci')].map(e=>({apresentacao_id:e.querySelector('.r_ap').value,via:e.querySelector('.r_via').value,quantidade:e.querySelector('.r_q').value,unidade_quantidade:e.querySelector('.r_u').value,posologia:e.querySelector('.r_p').value,observacoes:e.querySelector('.r_ob').value}));
  const j=await api('/api/receitas',{internacao_id:window._ri,validade_ate:$('#rc_v').value||null,observacoes:$('#rc_o').value,itens,assinar:as});registro(j.id,window._ri,j.erro_assinatura?('Salvo como rascunho. Pendências para assinar: '+j.erro_assinatura):(as?'Receita assinada. Já pode gerar o PDF.':'Rascunho salvo.'))}catch(e){$('#rc_m').innerHTML=msg(e.message)}}
+
+// ===== Ditado por voz (reconhecimento de voz do navegador; precisa de HTTPS). Preenche o campo de texto em foco; o médico revisa.
+(function(){const SR=window.SpeechRecognition||window.webkitSpeechRecognition;let rec=null,alvo=null,ligado=false,fim=false;
+ const box=document.createElement('div');box.className='mic';box.hidden=true;box.innerHTML='<div class="st" id="mic_st" hidden></div><button type="button" id="mic_b" aria-label="Ditar por voz">🎤 Ditar</button>';document.body.appendChild(box);
+ const st=t=>{const e=document.getElementById('mic_st');e.hidden=!t;e.textContent=t||''};
+ document.addEventListener('focusin',e=>{if(e.target.tagName==='TEXTAREA'&&!e.target.readOnly&&!e.target.disabled)alvo=e.target});
+ setInterval(()=>{box.hidden=!me;if(!me&&ligado)parar()},700);
+ const cmd=t=>t.replace(/\s*\bponto e vírgula\b/gi,';').replace(/\s*\b(ponto final|ponto parágrafo)\b/gi,'.').replace(/\s*\bponto de interrogação\b/gi,'?').replace(/\s*\bdois pontos\b/gi,':').replace(/\s*\bvírgula\b/gi,',').replace(/\s*\b(nova linha|próxima linha)\b\s*/gi,'\n');
+ function inserir(txt){if(!alvo||!document.body.contains(alvo)){st('Toque num campo de texto antes de ditar.');return}
+  let t=cmd(txt.trim());if(!t)return;const v=alvo.value,i=alvo.selectionEnd??v.length,a=v.slice(0,i),b=v.slice(i);
+  if(!a||/[.?!]\s*$|\n$/.test(a))t=t.charAt(0).toUpperCase()+t.slice(1);
+  const sep=a&&!/[\s\n]$/.test(a)&&!/^[.,;:?!\n]/.test(t)?' ':'';alvo.value=a+sep+t+b;const p=(a+sep+t).length;try{alvo.setSelectionRange(p,p)}catch(_){}
+  alvo.dispatchEvent(new Event('input',{bubbles:true}))}
+ function iniciar(){if(!SR){st('Este navegador não tem reconhecimento de voz. Use Chrome, Edge ou Safari.');return}
+  if(!window.isSecureContext){st('O ditado só funciona em endereço seguro (HTTPS).');return}
+  if(!alvo){st('Toque primeiro no campo de texto onde quer ditar.');return}
+  rec=new SR();rec.lang='pt-BR';rec.continuous=true;rec.interimResults=true;fim=false;
+  rec.onresult=e=>{let tmp='';for(let k=e.resultIndex;k<e.results.length;k++){const r=e.results[k];if(r.isFinal)inserir(r[0].transcript);else tmp+=r[0].transcript}st(tmp?'🎤 '+tmp:'🎤 Ouvindo… fale agora')};
+  rec.onerror=e=>{if(e.error==='no-speech'||e.error==='aborted')return;fim=true;st(e.error==='not-allowed'||e.error==='service-not-allowed'?'Microfone bloqueado. Permita o acesso ao microfone nas configurações do navegador.':e.error==='audio-capture'?'Nenhum microfone encontrado.':e.error==='network'?'Sem conexão com o serviço de voz do navegador.':'Erro no ditado: '+e.error)};
+  rec.onend=()=>{if(ligado&&!fim){try{rec.start()}catch(_){parar()}}else if(ligado)parar(true)};
+  try{rec.start();ligado=true;const b=document.getElementById('mic_b');b.classList.add('on');b.textContent='⏹ Parar';st('🎤 Ouvindo… fale agora. Diga "ponto", "vírgula" ou "nova linha" para pontuar.')}catch(e){st('Não foi possível iniciar o microfone.')}}
+ function parar(manterMsg){ligado=false;try{rec&&rec.stop()}catch(_){}const b=document.getElementById('mic_b');b.classList.remove('on');b.textContent='🎤 Ditar';if(!manterMsg)st('')}
+ document.getElementById('mic_b').addEventListener('mousedown',e=>e.preventDefault());
+ document.getElementById('mic_b').addEventListener('click',()=>{if(ligado){parar();return}
+  let ok=false;try{ok=localStorage.getItem('mic_ok')==='1'}catch(_){}
+  if(ok){iniciar();return}
+  dlg(`<h2>Ditado por voz</h2><p>O áudio é enviado ao serviço de reconhecimento de voz do seu navegador (no Chrome e no Edge, servidores do fabricante) apenas enquanto o microfone está ligado. O MedNexo <b>não grava nem guarda áudio</b>: só recebe o texto que você confirmar.</p><p class="mut">Evite ditar o nome completo, CPF ou contatos do paciente. Revise o texto antes de assinar.</p><div class="tabs"><button class="p" id="mic_ok">Entendi, ativar ditado</button><button class="s" onclick="fechar()">Cancelar</button></div>`);
+  document.getElementById('mic_ok').onclick=()=>{try{localStorage.setItem('mic_ok','1')}catch(_){}fechar();iniciar()}});
+})();
 fetch('/api/me').then(r=>r.ok?r.json():null).then(j=>{me=j;render()});
 </script></body></html>
