@@ -108,6 +108,24 @@ section{padding-block:72px}
 .final .cta{justify-content:center}
 footer{border-top:1px solid var(--line);margin-inline:calc(50% - 50vw);padding:28px max(16px,calc(50vw - 560px));display:flex;gap:16px 32px;flex-wrap:wrap;align-items:center;justify-content:space-between;color:var(--mut);font-size:14px}
 footer .brand{font-size:20px}footer .brand img{height:36px}
+/* inteligência em saúde (em desenvolvimento) */
+.ia{background:linear-gradient(135deg,#0b2a6b 0%,#1565d8 62%,#14b8b0 130%);color:#fff;margin-inline:calc(50% - 50vw);padding-inline:max(16px,calc(50vw - 560px))}
+.ia .eyebrow{color:#9fe9e4}.ia h2{color:#fff}.ia .sh p{color:#d5e3ff}
+.iagrid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;margin-bottom:28px}
+.iacard{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.25);border-radius:14px;padding:20px;min-width:0}
+.iacard h3{font-size:17px;font-weight:700;color:#fff}.iacard p{margin:8px 0 0;font-size:14.5px;color:#d5e3ff}
+.iacard .tag{display:inline-block;margin-bottom:10px;padding:2px 10px;border-radius:999px;background:rgba(20,184,176,.25);border:1px solid #6fe3dc;color:#c9fffb;font:600 12px var(--f-body)}
+.iabox{display:grid;grid-template-columns:1.1fr .9fr;gap:28px;align-items:start}
+.iamock{background:#fff;color:#0b1f45;border-radius:16px;overflow:hidden;font-size:13px;min-width:0}
+.iamock .mh{display:flex;justify-content:space-between;gap:8px;padding:10px 14px;font-weight:600;background:#f2f6fb;color:#0b2a6b;border-bottom:1px solid #d8e2f0}.iamock .mh span:last-child{color:#4b5f80}
+.iamock .body{display:grid;gap:10px;padding:14px}
+.iamock .k{font-size:11px;letter-spacing:.08em;text-transform:uppercase;color:#4b5f80;font-weight:600}
+.iamock .lim{border:1px solid #e8b25e;background:#fff3de;color:#8a5300;border-radius:10px;padding:9px 12px}
+.iarules{list-style:none;margin:0;padding:0;display:grid;gap:12px}
+.iarules li{display:grid;grid-template-columns:22px 1fr;gap:10px;color:#eaf2ff}
+.iarules li::before{content:"";width:18px;height:18px;margin-top:4px;border-radius:50%;background:#6fe3dc;-webkit-mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath d='M4 9.5l3.2 3L14 5.5' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat;mask:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 18 18'%3E%3Cpath d='M4 9.5l3.2 3L14 5.5' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E") center/contain no-repeat}
+.ia .cap{color:#c3d6ff}
+@media(max-width:900px){.iagrid{grid-template-columns:1fr}.iabox{grid-template-columns:1fr}}
 @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 </style>
 
@@ -116,7 +134,7 @@ footer .brand{font-size:20px}footer .brand img{height:36px}
 <header>
   <div class="bar wrap">
     <a class="brand" href="#topo" aria-label="MedNexo, início"><img src="symbol.png" alt=""><span><span class="a">Med</span><span class="b">Nexo</span></span></a>
-    <nav aria-label="Seções"><a href="#recursos">Recursos</a><a href="#modulos">Módulos</a><a href="#acesso">Acesso</a></nav>
+    <nav aria-label="Seções"><a href="#recursos">Recursos</a><a href="#inteligencia">Inteligência</a><a href="#modulos">Módulos</a><a href="#acesso">Acesso</a></nav>
     <a class="btn pri" href="http://76.13.239.123:8086" target="_blank" rel="noopener">Entrar no ambiente de teste</a>
   </div>
 </header>
@@ -143,7 +161,7 @@ footer .brand{font-size:20px}footer .brand img{height:36px}
   <div>Histórico completo<small>Linha do tempo do paciente</small></div>
   <div>Painel do dia<small>Pendências e risco por paciente</small></div>
   <div>Segurança de dados<small>Perfis, auditoria, integridade</small></div>
-  <div class="soon">Inteligência em saúde<small>Em breve</small></div>
+  <div class="soon"><a href="#inteligencia" style="text-decoration:none;color:inherit">Inteligência em saúde</a><small>Em desenvolvimento</small></div>
 </div>
 
 <div class="wrap">
@@ -202,6 +220,27 @@ footer .brand{font-size:20px}footer .brand img{height:36px}
 </section>
 </div>
 
+<div class="ia"><div class="wrap">
+<section id="inteligencia">
+  <div class="sh"><div class="eyebrow">Inteligência em saúde · em desenvolvimento</div><h2>Apoio à decisão que trabalha para o médico, não no lugar dele.</h2><p>Estes recursos estão planejados e ainda não estão disponíveis no sistema. O médico continua decidindo e assinando tudo.</p></div>
+  <div class="iagrid">
+    <div class="iacard"><span class="tag">Em breve</span><h3>Análise de exames</h3><p>Leitura de exames laboratoriais e de imagem importados por foto ou PDF, com valores alterados destacados e comparados com o histórico do paciente.</p></div>
+    <div class="iacard"><span class="tag">Em breve</span><h3>Correlação com o paciente</h3><p>Idade, peso, altura, diagnósticos, alergias e medicações em uso entram na análise, sem nome, CPF ou contato.</p></div>
+    <div class="iacard"><span class="tag">Em breve</span><h3>Rascunho para a evolução</h3><p>O resultado vira um rascunho de evolução para o médico revisar, editar e assinar. Nada entra no prontuário sozinho.</p></div>
+  </div>
+  <div class="iabox">
+    <div><div class="iamock" role="img" aria-label="Exemplo ilustrativo de análise de exame planejada, com dados fictícios">
+      <div class="mh"><span>Análise de exame · exemplo planejado</span><span>dados fictícios</span></div>
+      <div class="body"><div><div class="k">Resumo</div>Valor acima da faixa de referência do laudo. Sugere-se conferir o resultado e o contexto clínico.</div>
+      <div><div class="k">Correlação com o paciente</div>Idade, IMC e medicações em uso considerados.</div>
+      <div class="lim"><b>Apoio à decisão.</b> Confira com o laudo original. A conduta é do médico.</div></div></div>
+      <div class="cap">Ilustração do que está planejado. Recurso ainda não disponível.</div></div>
+    <div><h3 style="font-size:20px;font-weight:700;margin-bottom:14px;color:#fff">Princípios da nossa inteligência em saúde</h3>
+      <ul class="iarules"><li>O médico revisa e decide. Nenhuma análise é assinada automaticamente.</li><li>Dados de identificação direta não saem do sistema.</li><li>Cada uso fica registrado na auditoria.</li><li>O sistema mostra as limitações de cada análise.</li></ul></div>
+  </div>
+</section>
+</div></div>
+
 <div class="bg2"><div class="wrap">
 <section id="modulos">
   <div class="sh"><div class="eyebrow">Módulos</div><h2>O que já está pronto e o que vem a seguir.</h2></div>
@@ -247,7 +286,7 @@ footer .brand{font-size:20px}footer .brand img{height:36px}
 <footer>
   <a class="brand" href="#topo"><img src="symbol.png" alt=""><span><span class="a">Med</span><span class="b">Nexo</span></span></a>
   <span>Seu paciente conectado. Sua gestão integrada. Seu cuidado contínuo.</span>
-  <span><a href="#recursos">Recursos</a> · <a href="#modulos">Módulos</a> · <a href="#acesso">Acesso</a></span>
+  <span><a href="#recursos">Recursos</a> · <a href="#inteligencia">Inteligência</a> · <a href="#modulos">Módulos</a> · <a href="#acesso">Acesso</a></span>
 </footer>
 </body>
 </html>
