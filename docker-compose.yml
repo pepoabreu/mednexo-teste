@@ -31,6 +31,40 @@ services:
     restart: unless-stopped
     ports:
       - "8085:80"
+  # Túnel nomeado da Cloudflare (endereço fixo com HTTPS). O token vem do ambiente do servidor, nunca do repositório.
+  # Rotas públicas (configuradas no painel da Cloudflare): mednexo.iavtech.com.br -> http://web:80 ; app.mednexo.iavtech.com.br -> http://app:8080
+  tunel:
+    image: cloudflare/cloudflared:latest
+    restart: unless-stopped
+    depends_on: [app, web]
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN:?defina CF_TUNNEL_TOKEN no ambiente}
+volumes:
+      - dbdata:/var/lib/postgresql/data
+  app:
+    build: https://github.com/pepoabreu/mednexo-teste.git#main
+    restart: unless-stopped
+    depends_on: [db]
+    ports:
+      - "8086:8080"
+    environment:
+      PGHOST: db
+      PGUSER: postgres
+      PGDATABASE: mednexo
+      PW_MEDICO: ${PW_MEDICO:?defina PW_MEDICO}
+      PW_ASSIST: ${PW_ASSIST:?defina PW_ASSIST}
+      PW_ENF: ${PW_ENF:?defina PW_ENF}
+      PW_ADM: ${PW_ADM:?defina PW_ADM}
+      PW_AUD: ${PW_AUD:?defina PW_AUD}
+      CODIGO_CONVITE: ${CODIGO_CONVITE:-}
+  web:
+    build:
+      context: https://github.com/pepoabreu/mednexo-teste.git#main
+      dockerfile: Dockerfile.site
+    restart: unless-stopped
+    ports:
+      - "8085:80"
   tunel-app:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped

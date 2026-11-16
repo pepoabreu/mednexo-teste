@@ -31,7 +31,7 @@ async function login(req, res, b) {
   await pool.query('UPDATE mednexo.usuario SET tentativas_falhas = 0, bloqueado_ate = NULL, ultimo_login_em = now() WHERE id = $1', [u.id]);
   const tok = crypto.randomBytes(32).toString('hex');
   sessions.set(tok, { uid: u.id, org: u.organizacao_id, papel: u.papel, nome: u.nome_completo, exp: Date.now() + 8 * 3600e3 });
-  send(res, 200, { ok: true, nome: u.nome_completo, papel: u.papel }, { 'Set-Cookie': `sid=${tok}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800` });
+  send(res, 200, { ok: true, nome: u.nome_completo, papel: u.papel }, { 'Set-Cookie': `sid=${tok}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : ''}` });
 }
 
 async function cadastro(req, res, b) {
