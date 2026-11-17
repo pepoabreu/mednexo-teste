@@ -349,7 +349,7 @@ footer{background:#eef3fb}
 <section class="final">
   <h2>Seu paciente conectado. Sua gestão integrada. Seu cuidado contínuo.</h2>
   <p>Crie seu ambiente de teste em minutos, ou entre com a conta que você já tem.</p>
-  <div class="cta"><a class="btn pri" href="#contratar">Teste grátis por 14 dias</a><a class="btn" href="https://app.mednexo.iavtech.com.br" target="_blank" rel="noopener">Já tenho conta</a></div>
+  <div class="cta"><a class="btn pri" href="#contratar">Teste grátis por 14 dias</a><a class="btn" href="/sistema/">Já tenho conta</a></div>
 </section>
 </div>
 </main>
@@ -359,13 +359,13 @@ footer{background:#eef3fb}
   <span><a href="#recursos">Recursos</a> · <a href="#inteligencia">Inteligência</a> · <a href="#modulos">Módulos</a> · <a href="#planos">Planos</a> · <a href="#contratar">Contratar</a></span>
 </footer>
 <script>
-(function(){var f=document.getElementById('fc'),m=document.getElementById('f_msg'),bt=document.getElementById('f_bt'),APP='https://app.mednexo.iavtech.com.br';
+(function(){var f=document.getElementById('fc'),m=document.getElementById('f_msg'),bt=document.getElementById('f_bt'),APP='/sistema/';
 function v(i){return document.getElementById(i).value}
 f.addEventListener('submit',function(e){e.preventDefault();m.className='';m.textContent='';bt.disabled=true;
  fetch('/api/contratar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({clinica:v('f_cl'),nome:v('f_no'),email:v('f_em'),telefone:v('f_te'),crm:v('f_cr'),uf:v('f_uf'),senha:v('f_se'),aceite:document.getElementById('f_ac').checked})})
  .then(function(r){return r.json().then(function(j){return{ok:r.ok,j:j}})}).then(function(x){bt.disabled=false;
   if(!x.ok){m.className='err';m.textContent=x.j.erro||'Não foi possível criar o ambiente.';return}
-  f.reset();m.className='ok';m.innerHTML='Ambiente criado! Seu teste de '+x.j.teste_dias+' dias começou. <a href="'+APP+'" target="_blank" rel="noopener"><b>Entrar no sistema</b></a> com o e-mail e a senha que você acabou de definir.'})
+  f.reset();m.className='ok';m.innerHTML='Ambiente criado! Seu teste de '+x.j.teste_dias+' dias começou. <a href="'+APP+'"><b>Entrar no sistema</b></a> com o e-mail e a senha que você acabou de definir.'})
  .catch(function(){bt.disabled=false;m.className='err';m.textContent='Falha de conexão. Tente novamente.'})})})();
 </script>
 </body>
