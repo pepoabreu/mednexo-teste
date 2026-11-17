@@ -27,6 +27,9 @@ module.exports = function (pool, { need, uuid }) {
         const h = (await c.query(`INSERT INTO mednexo.hospital (organizacao_id, ${COLS.join(',')}) VALUES ($1,${COLS.map((_, i) => '$' + (i + 2) + (COLS[i] === 'tipo' ? '::mednexo.tipo_instituicao' : '')).join(',')}) RETURNING id`, [ctx.org, ...v])).rows[0];
         const m = (await c.query('SELECT id FROM mednexo.organizacao_membro WHERE usuario_id = $1 AND organizacao_id = $2', [ctx.uid, ctx.org])).rows[0];
         if (m) await c.query('INSERT INTO mednexo.membro_hospital (organizacao_id, membro_id, hospital_id) VALUES ($1,$2,$3) ON CONFLICT DO NOTHING', [ctx.org, m.id, h.id]);
+        // prontuário compartilhado: o novo hospital fica disponível para todos os médicos ativos da organização
+        await pool.query(`INSERT INTO mednexo.membro_hospital (organizacao_id, membro_id, hospital_id) SELECT $1, om.id, $2 FROM mednexo.organizacao_membro om JOIN mednexo.organizacao o ON o.id = om.organizacao_id
+          WHERE om.organizacao_id = $1 AND om.ativo AND o.prontuario_compartilhado AND om.papel IN ('medico_administrador','medico_assistente') AND om.id <> $3 AND NOT EXISTS (SELECT 1 FROM mednexo.membro_hospital x WHERE x.membro_id = om.id AND x.hospital_id = $2)`, [ctx.org, h.id, m ? m.id : '00000000-0000-0000-0000-000000000000']);
         return { id: h.id };
       } catch (e) { throw amigavel(e); } },
     'POST /api/hospitais/atualizar': async (s, c, q, b) => { gerir(s); const v = campos(b);

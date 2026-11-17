@@ -64,12 +64,14 @@ async function gestor(pool, env) {
   if (senha.length < 10) { console.log('GESTOR_SENHA precisa de 10+ caracteres; gestor não criado.'); return; }
   let u = (await pool.query('SELECT u.id, m.organizacao_id FROM mednexo.usuario u JOIN mednexo.organizacao_membro m ON m.usuario_id = u.id WHERE u.email = $1 LIMIT 1', [email])).rows[0];
   if (!u) await pool.tx(async c => {
-    const org = (await c.query(`INSERT INTO mednexo.organizacao (nome, plano) VALUES ($1, 'ativo') RETURNING id`, [env.GESTOR_ORG || 'MedNexo · ' + (env.GESTOR_NOME || email)])).rows[0].id;
+    const org = (await c.query(`INSERT INTO mednexo.organizacao (nome, plano, prontuario_compartilhado) VALUES ($1, 'ativo', true) RETURNING id`, [env.GESTOR_ORG || 'MedNexo · ' + (env.GESTOR_NOME || email)])).rows[0].id;
     const id = (await c.query('INSERT INTO mednexo.usuario (email, nome_completo, senha_hash) VALUES ($1,$2,$3) RETURNING id', [email, env.GESTOR_NOME || email, hashSenha(senha)])).rows[0].id;
     await c.query(`SELECT set_config('app.usuario_id',$1,true), set_config('app.organizacao_id',$2,true)`, [id, org]);
     await c.query(`INSERT INTO mednexo.organizacao_membro (organizacao_id, usuario_id, papel) VALUES ($1,$2,'medico_administrador'::mednexo.papel_usuario)`, [org, id]);
     u = { id, organizacao_id: org }; console.log('Gestor médico criado:', email);
   });
+  // organização do gestor nasce com prontuário compartilhado (até o gestor decidir na tela Equipe)
+  await pool.query('UPDATE mednexo.organizacao SET prontuario_compartilhado = true WHERE id = $1 AND compartilhado_definido_em IS NULL AND NOT prontuario_compartilhado', [u.organizacao_id]);
   const crm = String(env.GESTOR_CRM || '').replace(/\D/g, ''), uf = String(env.GESTOR_UF || '').trim().toUpperCase();
   if (crm && /^[A-Z]{2}$/.test(uf) && !(await pool.query('SELECT 1 FROM mednexo.profissional WHERE usuario_id = $1', [u.id])).rows.length)
     await pool.tx(async c => { await c.query(`SELECT set_config('app.usuario_id',$1,true), set_config('app.organizacao_id',$2,true)`, [u.id, u.organizacao_id]);
