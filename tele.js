@@ -40,9 +40,9 @@ ALTER TABLE mednexo.teleconsulta ENABLE ROW LEVEL SECURITY;
 ALTER TABLE mednexo.tele_mensagem ENABLE ROW LEVEL SECURITY;
 ALTER TABLE mednexo.tele_anexo ENABLE ROW LEVEL SECURITY;
 DROP POLICY IF EXISTS p_sel ON mednexo.teleconsulta; DROP POLICY IF EXISTS p_ins ON mednexo.teleconsulta; DROP POLICY IF EXISTS p_upd ON mednexo.teleconsulta;
-CREATE POLICY p_sel ON mednexo.teleconsulta FOR SELECT USING (organizacao_id = mednexo.ctx_org() AND mednexo.pode_ler_clinico_paciente(paciente_id));
-CREATE POLICY p_ins ON mednexo.teleconsulta FOR INSERT WITH CHECK (organizacao_id = mednexo.ctx_org() AND medico_usuario_id = mednexo.ctx_usuario() AND mednexo.pode_escrever_clinico_paciente(paciente_id));
-CREATE POLICY p_upd ON mednexo.teleconsulta FOR UPDATE USING (organizacao_id = mednexo.ctx_org() AND mednexo.pode_escrever_clinico_paciente(paciente_id));
+CREATE POLICY p_sel ON mednexo.teleconsulta FOR SELECT USING (organizacao_id = mednexo.ctx_org() AND (medico_usuario_id = mednexo.ctx_usuario() OR mednexo.pode_ler_clinico_paciente(paciente_id)));
+CREATE POLICY p_ins ON mednexo.teleconsulta FOR INSERT WITH CHECK (organizacao_id = mednexo.ctx_org() AND medico_usuario_id = mednexo.ctx_usuario() AND mednexo.tem_permissao('clinico.escrever'));
+CREATE POLICY p_upd ON mednexo.teleconsulta FOR UPDATE USING (organizacao_id = mednexo.ctx_org() AND (medico_usuario_id = mednexo.ctx_usuario() OR mednexo.pode_escrever_clinico_paciente(paciente_id)));
 DROP POLICY IF EXISTS p_sel ON mednexo.tele_mensagem; DROP POLICY IF EXISTS p_ins ON mednexo.tele_mensagem;
 CREATE POLICY p_sel ON mednexo.tele_mensagem FOR SELECT USING (EXISTS (SELECT 1 FROM mednexo.teleconsulta t WHERE t.id = teleconsulta_id));
 CREATE POLICY p_ins ON mednexo.tele_mensagem FOR INSERT WITH CHECK (EXISTS (SELECT 1 FROM mednexo.teleconsulta t WHERE t.id = teleconsulta_id));
@@ -124,17 +124,21 @@ module.exports = function (pool, { uuid }) {
   async function minha(c, id) { const t = (await c.query(`SELECT * FROM mednexo.teleconsulta WHERE id = $1`, [uuid(id)])).rows[0]; if (!t) throw err('Teleconsulta não encontrada.', 404); return t; }
   R['POST /api/tele/criar'] = async (s, c, q, b, ctx) => {
     if (!ehMedico(s)) throw err('Somente médicos iniciam teleconsultas.', 403);
-    const it = (await c.query(`SELECT id, paciente_id, status FROM mednexo.internacao WHERE id = $1`, [uuid(b.internacao_id)])).rows[0];
-    if (!it) throw err('Internação não encontrada.', 404);
+    let pac, iid = null;
+    if (b.internacao_id) { const it = (await c.query(`SELECT id, paciente_id FROM mednexo.internacao WHERE id = $1`, [uuid(b.internacao_id)])).rows[0]; if (!it) throw err('Internação não encontrada.', 404); pac = it.paciente_id; iid = it.id; }
+    else { const p = (await c.query(`SELECT id FROM mednexo.paciente WHERE id = $1`, [uuid(b.paciente_id, 'Escolha o paciente.')])).rows[0]; if (!p) throw err('Paciente não encontrado ou sem permissão.', 404); pac = p.id; }
+    const nome = (await c.query(`SELECT coalesce(nome_social, nome_completo) AS n FROM mednexo.paciente WHERE id = $1`, [pac])).rows[0].n;
     const token = crypto.randomBytes(24).toString('base64url');
     const t = (await c.query(`INSERT INTO mednexo.teleconsulta (organizacao_id, paciente_id, internacao_id, medico_usuario_id, token_sha256, expira_em) VALUES ($1,$2,$3,$4,decode($5,'hex'), now() + interval '24 hours') RETURNING id, criada_em, expira_em`,
-      [ctx.org, it.paciente_id, it.id, ctx.uid, sha(token).toString('hex')])).rows[0];
+      [ctx.org, pac, iid, ctx.uid, sha(token).toString('hex')])).rows[0];
+    const it = { paciente_id: pac, id: iid };
     await c.query(`SELECT mednexo.auditar_acesso('tele_criar','teleconsulta',$1,$2::uuid,$3::uuid,'{}'::jsonb)`, [t.id, it.paciente_id, it.id]);
-    return { id: t.id, chave: `${t.id}.${token}`, expira_em: t.expira_em };
+    return { id: t.id, chave: `${t.id}.${token}`, expira_em: t.expira_em, paciente: nome };
   };
   R['GET /api/tele/lista'] = async (s, c, q) => (await c.query(`SELECT t.id, t.status, t.criada_em, t.expira_em, t.iniciada_em, t.encerrada_em, t.consentimento_em, u.nome_completo AS medico,
       (SELECT count(*) FROM mednexo.tele_anexo a WHERE a.teleconsulta_id = t.id)::int AS anexos, (SELECT count(*) FROM mednexo.tele_mensagem m WHERE m.teleconsulta_id = t.id)::int AS mensagens
-      FROM mednexo.teleconsulta t JOIN mednexo.usuario u ON u.id = t.medico_usuario_id WHERE t.internacao_id = $1 ORDER BY t.criada_em DESC LIMIT 30`, [uuid(q.internacao_id)])).rows;
+        , coalesce(p.nome_social, p.nome_completo) AS paciente, p.codigo AS paciente_codigo FROM mednexo.teleconsulta t JOIN mednexo.usuario u ON u.id = t.medico_usuario_id JOIN mednexo.paciente p ON p.id = t.paciente_id
+      WHERE ($1::uuid IS NULL OR t.internacao_id = $1) ORDER BY t.criada_em DESC LIMIT 100`, [q.internacao_id ? uuid(q.internacao_id) : null])).rows;
   R['GET /api/tele/sala'] = async (s, c, q) => { const t = await minha(c, q.id); return { tele: { id: t.id, status: t.status, consentimento_em: t.consentimento_em, expira_em: t.expira_em, internacao_id: t.internacao_id }, ...(await conteudo(c, t.id)) }; };
   R['POST /api/tele/msg'] = async (s, c, q, b) => { const t = await minha(c, b.id); if (t.status === 'encerrada') throw err('Teleconsulta encerrada.', 409); return gravarMsg(c, t.id, 'medico', b.texto); };
   R['POST /api/tele/sinal'] = async (s, c, q, b) => { const t = await minha(c, b.id); if (t.status === 'encerrada') throw err('Teleconsulta encerrada.', 409);

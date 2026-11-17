@@ -64,7 +64,7 @@ async function req(url,body){const h={};if(CHAVE)h['X-Tele-Chave']=CHAVE;if(body
  const r=await fetch(url,{method:body?'POST':'GET',headers:h,body:body?JSON.stringify(body):undefined,credentials:'same-origin'});
  const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j.erro||('Erro '+r.status));e.status=r.status;throw e}return j}
 function estado(t,c){$('#st').innerHTML=`<span class="dot ${c||''}"></span>${esc(t)}`}
-let S=null,seq=0,pc=null,local=null,pend=[],ativo=true,mic=true,cam=true,anexosById={};
+let S=null,seq=0,pc=null,local=null,pend=[],ativo=true,mic=true,cam=true,anexosById={},OID=null,ultOferta=0;
 
 async function inicio(){
  if(!ID||(!MEDICO&&!CHAVE.includes('.'))){$('#app').innerHTML='<div class="card termo"><h1>Link inválido</h1><p>Peça ao seu médico um novo link de teleconsulta.</p></div>';estado('link inválido','off');return}
@@ -125,20 +125,20 @@ async function sinal(tipo,dados){try{await req(API.sinal,{id:ID,tipo,dados})}cat
 function novaConexao(){if(pc){try{pc.close()}catch(_){}}
  pc=new RTCPeerConnection({iceServers:S.ice});pend=[];
  if(local)local.getTracks().forEach(t=>pc.addTrack(t,local));else{pc.addTransceiver('video',{direction:'recvonly'});pc.addTransceiver('audio',{direction:'recvonly'})}
- pc.onicecandidate=e=>{if(e.candidate)sinal('ice',e.candidate.toJSON())};
+ const meu=OID;pc.onicecandidate=e=>{if(e.candidate)sinal('ice',{c:e.candidate.toJSON(),oid:meu})};
  pc.ontrack=e=>{const rv=$('#rv');if(rv&&rv.srcObject!==e.streams[0]){rv.srcObject=e.streams[0]}$('#vmsg').textContent=''};
  pc.onconnectionstatechange=()=>{const s=pc.connectionState;if(s==='connected')estado('em chamada','on');else if(s==='connecting')estado('conectando vídeo…');else if(s==='failed'){estado('falha no vídeo','off');$('#vmsg').textContent='A conexão de vídeo falhou. O chat continua funcionando.';if(MEDICO)setTimeout(()=>oferta(),2000)}else if(s==='disconnected')estado('conexão instável','off')};
  return pc}
-async function oferta(){novaConexao();const o=await pc.createOffer();await pc.setLocalDescription(o);sinal('offer',pc.localDescription.toJSON())}
+async function oferta(){ultOferta=Date.now();OID=String(ultOferta)+Math.random().toString(36).slice(2,6);novaConexao();const o=await pc.createOffer();await pc.setLocalDescription(o);sinal('offer',{sdp:pc.localDescription.toJSON(),oid:OID})}
 async function trata(ev){
  if(ev.tipo==='msg')return mostraMsg(ev.dados);
  if(ev.tipo==='anexo'){anexosById[ev.dados.id]=ev.dados;return}
  if(ev.tipo==='estado'){if(ev.dados.status==='encerrada')return encerrada();if(ev.dados.consentimento&&MEDICO)estado('paciente aceitou o termo');return}
  if(ev.tipo!=='sinal')return;const {tipo,dados}=ev.dados;
- if(tipo==='pronto'){if(MEDICO)await oferta();else sinal('pronto');return}
- if(tipo==='offer'&&!MEDICO){novaConexao();await pc.setRemoteDescription(dados);for(const c of pend)await pc.addIceCandidate(c).catch(()=>{});pend=[];const a=await pc.createAnswer();await pc.setLocalDescription(a);sinal('answer',pc.localDescription.toJSON());return}
- if(tipo==='answer'&&MEDICO&&pc){await pc.setRemoteDescription(dados);for(const c of pend)await pc.addIceCandidate(c).catch(()=>{});pend=[];return}
- if(tipo==='ice'){if(pc&&pc.remoteDescription)await pc.addIceCandidate(dados).catch(()=>{});else pend.push(dados);return}
+ if(tipo==='pronto'){if(MEDICO){if(pc&&['new','connecting','connected'].includes(pc.connectionState)&&Date.now()-ultOferta<6000)return;await oferta()}else sinal('pronto');return}
+ if(tipo==='offer'&&!MEDICO){OID=dados.oid;const guard=pend.filter(x=>x.oid===OID);novaConexao();pend=guard;await pc.setRemoteDescription(dados.sdp);for(const c of pend)await pc.addIceCandidate(c.c).catch(()=>{});pend=[];const a=await pc.createAnswer();await pc.setLocalDescription(a);sinal('answer',{sdp:pc.localDescription.toJSON(),oid:OID});return}
+ if(tipo==='answer'&&MEDICO&&pc){if(dados.oid!==OID||pc.signalingState!=='have-local-offer')return;await pc.setRemoteDescription(dados.sdp);for(const c of pend)await pc.addIceCandidate(c.c).catch(()=>{});pend=[];return}
+ if(tipo==='ice'){if(!dados||(OID&&dados.oid!==OID&&!(!MEDICO&&!pc)))return;if(pc&&pc.remoteDescription)await pc.addIceCandidate(dados.c).catch(()=>{});else pend.push(dados);return}
  if(tipo==='hangup'){if(pc){pc.close();pc=null}$('#rv').srcObject=null;$('#vmsg').textContent=(MEDICO?'O paciente':'O médico')+' saiu da chamada.';estado('aguardando','')}
 }
 async function laco(){while(ativo){try{const r=await req(API.ev(seq));seq=r.seq;for(const e of r.eventos)await trata(e).catch(console.warn);
