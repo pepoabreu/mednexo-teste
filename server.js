@@ -1,7 +1,7 @@
 'use strict';
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
 const { Pool } = require('./pgmini');
-const { seed, adminExtra, hashSenha, confereSenha } = require('./seed');
+const { seed, adminExtra, gestor, hashSenha, confereSenha } = require('./seed');
 
 const PORT = +process.env.PORT || 8080;
 const DBO = process.env.PGSOCKET
@@ -150,6 +150,7 @@ const server = http.createServer(async (req, res) => {
   await hosp.migrar(); await ia.migrar(); await contr.migrar(); await tele.migrar();
   await seed(pool, process.env);
   await adminExtra(pool, process.env).catch(e => console.error('admin extra:', e.message));
+  await gestor(pool, process.env).catch(e => console.error('gestor:', e.message));
   await require('./demo')(pool, routes, process.env).catch(e => console.error('demo:', e.message));
   server.listen(PORT, '0.0.0.0', () => console.log('MEDNEXO ouvindo em', PORT));
 })().catch(e => { console.error(e); process.exit(1); });
