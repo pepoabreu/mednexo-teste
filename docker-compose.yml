@@ -26,6 +26,10 @@ services:
       ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
       IA_MODELO: ${IA_MODELO:-claude-sonnet-5-5}
       CODIGO_CONVITE: ${CODIGO_CONVITE:-}
+      ADMIN_EXTRA_EMAIL: ${ADMIN_EXTRA_EMAIL:-}
+      ADMIN_EXTRA_SENHA: ${ADMIN_EXTRA_SENHA:-}
+      TURN_SECRET: ${TURN_SECRET:-}
+      TURN_HOST: ${TURN_HOST:-}
   web:
     build:
       context: https://github.com/pepoabreu/mednexo-teste.git#main
@@ -42,5 +46,11 @@ services:
     command: tunnel --no-autoupdate run
     environment:
       TUNNEL_TOKEN: ${CF_TUNNEL_TOKEN:?defina CF_TUNNEL_TOKEN}
+  # Retransmissao de video (TURN) para teleconsulta em redes moveis/corporativas. Credenciais temporarias geradas pelo app.
+  turn:
+    image: coturn/coturn:latest
+    restart: unless-stopped
+    network_mode: host
+    command: ["-n", "--log-file=stdout", "--listening-port=3478", "--min-port=49160", "--max-port=49200", "--use-auth-secret", "--static-auth-secret=${TURN_SECRET:?defina TURN_SECRET}", "--realm=mednexo.iavtech.com.br", "--external-ip=${TURN_HOST:?defina TURN_HOST}", "--fingerprint", "--no-cli", "--no-tls", "--no-dtls", "--no-multicast-peers", "--denied-peer-ip=10.0.0.0-10.255.255.255", "--denied-peer-ip=172.16.0.0-172.31.255.255", "--denied-peer-ip=192.168.0.0-192.168.255.255", "--denied-peer-ip=127.0.0.0-127.255.255.255", "--denied-peer-ip=0.0.0.0-0.255.255.255"]
 volumes:
   dbdata:

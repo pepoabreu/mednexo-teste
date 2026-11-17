@@ -1,7 +1,7 @@
 'use strict';
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
 const { Pool } = require('./pgmini');
-const { seed, hashSenha, confereSenha } = require('./seed');
+const { seed, adminExtra, hashSenha, confereSenha } = require('./seed');
 
 const PORT = +process.env.PORT || 8080;
 const DBO = process.env.PGSOCKET
@@ -55,6 +55,7 @@ async function cadastro(req, res, b) {
 }
 
 const contr = require('./contratacao')(pool, { need }, { hashSenha });
+const tele = require('./tele')(pool, { uuid });
 const clin = require('./clinico')(pool, { need, uuid });
 const rep = require('./repasse')(pool, { need, uuid });
 const docs = require('./documentos')(pool, { need, uuid }, clin);
@@ -107,7 +108,7 @@ const routes = {
     eventos: (await c.query(`SELECT a.seq, a.ocorrido_em, a.acao, a.entidade, u.nome_completo AS usuario FROM mednexo.auditoria_evento a LEFT JOIN mednexo.usuario u ON u.id = a.usuario_id ORDER BY a.seq DESC LIMIT 60`)).rows }),
 };
 
-Object.assign(routes, clin.routes, rep.routes, hosp.routes, docs.routes, ia.routes);
+Object.assign(routes, clin.routes, rep.routes, hosp.routes, docs.routes, ia.routes, tele.routes);
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x'); const key = `${req.method} ${url.pathname}`;
@@ -115,15 +116,18 @@ const server = http.createServer(async (req, res) => {
   try {
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); return res.end(HTML()); }
     if (req.method === 'GET' && /^\/assets\/(symbol|lockup|icon-192)\.png$/.test(url.pathname)) { const f = path.join(__dirname, 'assets', path.basename(url.pathname)); res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' }); return res.end(fs.readFileSync(f)); }
+    if (req.method === 'GET' && url.pathname === '/tele') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' }); return res.end(fs.readFileSync(path.join(__dirname, 'public', 'tele.html'))); }
     if (key === 'GET /health') { await pool.query('SELECT 1'); return send(res, 200, { ok: true }); }
     if (!url.pathname.startsWith('/api/')) return send(res, 404, { erro: 'não encontrado' });
     if (req.method === 'POST' && req.headers['content-type'] && !/json/.test(req.headers['content-type'])) return send(res, 415, { erro: 'use JSON' });
+    if (await tele.publico(req, res, key, url, readBody, send)) return;
     if (key === 'POST /api/contratar') { const ip = String(req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress).split(',')[0].trim(); return send(res, 200, await contr.contratar(ip, await readBody(req))); }
     if (key === 'POST /api/cadastro') return await cadastro(req, res, await readBody(req));
     if (key === 'POST /api/login') return await login(req, res, await readBody(req));
     const tok = cookie(req).sid; const s = tok && sessions.get(tok);
     if (!s || s.exp < Date.now()) { if (tok) sessions.delete(tok); return send(res, 401, { erro: 'sessão expirada' }); }
     if (key === 'POST /api/logout') { sessions.delete(tok); return send(res, 200, { ok: true }, { 'Set-Cookie': 'sid=; Max-Age=0; Path=/' }); }
+    if (key === 'GET /api/tele/eventos') return send(res, 200, await tele.eventosMedico({ org: s.org, uid: s.uid, ip: req.socket.remoteAddress, ua: req.headers['user-agent'], rid: crypto.randomUUID() }, Object.fromEntries(url.searchParams)));
     const h = routes[key]; if (!h) return send(res, 404, { erro: 'rota inexistente' });
     const body = req.method === 'POST' ? await readBody(req, 14e6) : {};
     const ctx = { org: s.org, uid: s.uid, ip: req.socket.remoteAddress, ua: req.headers['user-agent'], rid: crypto.randomUUID() };
@@ -143,7 +147,9 @@ const server = http.createServer(async (req, res) => {
   if (!tem) { console.log('Aplicando schema MEDNEXO...'); await pool.raw(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8')); console.log('Schema aplicado.'); }
   await clin.migrar();
   await rep.migrar();
-  await hosp.migrar(); await ia.migrar(); await contr.migrar();
+  await hosp.migrar(); await ia.migrar(); await contr.migrar(); await tele.migrar();
   await seed(pool, process.env);
+  await adminExtra(pool, process.env).catch(e => console.error('admin extra:', e.message));
+  await require('./demo')(pool, routes, process.env).catch(e => console.error('demo:', e.message));
   server.listen(PORT, '0.0.0.0', () => console.log('MEDNEXO ouvindo em', PORT));
 })().catch(e => { console.error(e); process.exit(1); });

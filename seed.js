@@ -39,4 +39,21 @@ async function seed(pool, env) {
   });
   console.log('Dados de demonstração (fictícios) criados.');
 }
-module.exports = { seed, hashSenha, confereSenha };
+// Administrador extra (opcional, por variável de ambiente): médico administrador de uma organização própria de demonstração. Não altera se já existir.
+async function adminExtra(pool, env) {
+  const email = String(env.ADMIN_EXTRA_EMAIL || '').trim().toLowerCase(), senha = env.ADMIN_EXTRA_SENHA || '';
+  if (!email) return;
+  if (senha.length < 10) { console.log('ADMIN_EXTRA_SENHA precisa de 10+ caracteres; administrador extra não criado.'); return; }
+  if ((await pool.query('SELECT 1 FROM mednexo.usuario WHERE email = $1', [email])).rows.length) return;
+  await pool.tx(async c => {
+    const org = (await c.query(`INSERT INTO mednexo.organizacao (nome, plano) VALUES ($1, 'demo') RETURNING id`, [env.ADMIN_EXTRA_ORG || 'Clínica IAVTech (demonstração, dados fictícios)'])).rows[0].id;
+    const id = (await c.query('INSERT INTO mednexo.usuario (email, nome_completo, senha_hash) VALUES ($1,$2,$3) RETURNING id', [email, env.ADMIN_EXTRA_NOME || 'IAVTech (médico administrador)', hashSenha(senha)])).rows[0].id;
+    await c.query(`SELECT set_config('app.usuario_id',$1,true), set_config('app.organizacao_id',$2,true)`, [id, org]);
+    const crm = (await c.query(`SELECT (coalesce(max(numero_registro::bigint), 990000) + 1)::text AS n FROM mednexo.profissional WHERE numero_registro ~ '^99[0-9]{4}$'`)).rows[0].n;
+    await c.query(`INSERT INTO mednexo.profissional (usuario_id, numero_registro, uf, especialidade) VALUES ($1,$2,'RJ','Psiquiatria')`, [id, crm]);
+    const m = (await c.query(`INSERT INTO mednexo.organizacao_membro (organizacao_id, usuario_id, papel) VALUES ($1,$2,'medico_administrador'::mednexo.papel_usuario) RETURNING id`, [org, id])).rows[0].id;
+    await c.query('INSERT INTO mednexo.membro_hospital (organizacao_id, membro_id, hospital_id) SELECT $1, $2, id FROM mednexo.hospital WHERE organizacao_id = $1', [org, m]);
+  });
+  console.log('Administrador extra criado:', email);
+}
+module.exports = { seed, adminExtra, hashSenha, confereSenha };
