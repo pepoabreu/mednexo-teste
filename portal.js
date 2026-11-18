@@ -89,10 +89,10 @@ module.exports = function (pool, { need, uuid, routes, asaas, hashSenha, confere
   });
 
   // ---- sessão do médico para reaproveitar as rotas do sistema (mesmas regras, RLS e auditoria)
-  async function comoMedico(uid, org) {
+  async function comoMedico(uid, org, ip) {
     const m = (await pool.query(`SELECT m.papel, u.nome_completo FROM mednexo.organizacao_membro m JOIN mednexo.usuario u ON u.id = m.usuario_id WHERE m.usuario_id = $1 AND m.organizacao_id = $2 AND m.ativo`, [uid, org])).rows[0];
     if (!m) throw err('Médico indisponível.', 409);
-    const s = { uid, org, papel: m.papel, nome: m.nome_completo }, ctx = { org, uid, ip: 'portal', ua: 'area-do-cliente', rid: crypto.randomUUID() };
+    const s = { uid, org, papel: m.papel, nome: m.nome_completo }, ctx = { org, uid, ip: ip || null, ua: 'area-do-cliente', rid: crypto.randomUUID() };
     return (k, b) => pool.tx(c => routes[k](s, c, {}, b, ctx), ctx);
   }
 
@@ -162,7 +162,7 @@ module.exports = function (pool, { need, uuid, routes, asaas, hashSenha, confere
         [mid, v.organizacao_id, pid, ini.toISOString(), new Date(ini.getTime() + v.duracao_min * 60000).toISOString(), v.valor])).rows[0]; }
       catch (e) { throw err('Este horário acabou de ser reservado por outra pessoa. Escolha outro.', 409); }
       try {
-        const call = await comoMedico(mid, v.organizacao_id);
+        const call = await comoMedico(mid, v.organizacao_id, ipDe(req));
         let pac = (await pool.query(`SELECT id FROM mednexo.paciente WHERE organizacao_id = $1 AND cpf = $2 LIMIT 1`, [v.organizacao_id, u.cpf])).rows[0];
         if (!pac) pac = await call('POST /api/pacientes', { nome_completo: u.nome, cpf: u.cpf, data_nascimento: new Date(u.nascimento).toISOString().slice(0, 10) });
         const tc = await call('POST /api/tele/criar', { paciente_id: pac.id, valor: v.valor });
@@ -179,7 +179,7 @@ module.exports = function (pool, { need, uuid, routes, asaas, hashSenha, confere
       const l = (await pool.query(`SELECT a.id, a.inicio, a.fim, a.valor, a.status, a.reservado_ate, u.nome_completo AS medico, v.especialidade, v.rqe, p.numero_registro AS crm, p.uf,
           t.status AS tele_status, t.pago_em, t.reembolsado_em, (SELECT n.pdf_url FROM mednexo.nota_fiscal n WHERE n.teleconsulta_id = a.teleconsulta_id AND n.status = 'AUTHORIZED' ORDER BY n.criado_em DESC LIMIT 1) AS nota_pdf,
           (SELECT json_agg(json_build_object('id', x.id, 'nome', x.nome, 'categoria', x.categoria, 'criado_em', x.criado_em) ORDER BY x.criado_em) FROM mednexo.tele_anexo x WHERE x.teleconsulta_id = a.teleconsulta_id AND x.enviado_por = 'medico') AS documentos
-        FROM mednexo.agendamento a JOIN mednexo.usuario u ON u.id = a.medico_usuario_id LEFT JOIN mednexo.medico_vitrine v ON v.usuario_id = a.medico_usuario_id LEFT JOIN mednexo.profissional p ON p.usuario_id = a.medico_usuario_id
+        FROM mednexo.agendamento a JOIN mednexo.usuario u ON u.id = a.medico_usuario_id LEFT JOIN mednexo.medico_vitrine v ON v.usuario_id = a.medico_usuario_id LEFT JOIN mednexo.profissional p ON p.usuario_id = a.medico_usuario_id LEFT JOIN mednexo.teleconsulta t ON t.id = a.teleconsulta_id
         WHERE a.paciente_conta_id = $1 AND a.status <> 'erro' ORDER BY a.inicio DESC LIMIT 100`, [pid])).rows;
       send(res, 200, l.map(x => ({ ...x, especialidade: x.rqe ? x.especialidade : null, documentos: x.documentos || [] }))); return true;
     }

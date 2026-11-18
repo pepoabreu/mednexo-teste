@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#0b2a6b">
 <link rel="icon" href="/assets/icon-192.png">
-<title>MedNexo — Área do Cliente</title>
+<title>MedNexo — Área do Paciente</title>
 <style>
 :root{--bg:#f3f6fb;--card:#fbfcfe;--tx:#0a1f4d;--mut:#4f6283;--br:#d9e2f0;--pri:#1565d8;--navy:#0a2460;--ok:#0f7a4f;--bad:#b42318;--chip:#e6eefb}
 @media(prefers-color-scheme:dark){:root{--bg:#08152e;--card:#10264d;--tx:#e8eefb;--mut:#9db0d3;--br:#223a68;--pri:#4d94ff;--navy:#cfe0ff;--chip:#173a72}}
@@ -37,7 +37,7 @@ label{display:block;font-size:14px;color:var(--mut);margin:10px 0 4px}
 </style>
 </head>
 <body>
-<header><span class="logo"><img src="/assets/symbol.png" alt=""></span><b>MedNexo · Área do Cliente</b><nav id="nav"></nav></header>
+<header><a class="logo" href="/" aria-label="MedNexo, voltar ao site"><img src="/assets/symbol.png" alt=""></a><b>MedNexo · Área do Paciente</b><nav id="nav"></nav></header>
 <main id="app"><div class="card">Carregando…</div></main>
 <div id="ovl"></div>
 <script>
@@ -111,10 +111,10 @@ function formEntrar(){return `<div id="em"></div><div class="row" style="gap:6px
  <div id="f1"><label for="le">E-mail</label><input id="le" type="email" autocomplete="username"><label for="ls">Senha</label><input id="ls" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')logar()"><button class="p" style="margin-top:12px;width:100%" onclick="logar()">Entrar</button></div>
  <div id="f2" style="display:none"><label for="cn">Nome completo</label><input id="cn" autocomplete="name"><div class="g2"><div><label for="cc">CPF</label><input id="cc" inputmode="numeric"></div><div><label for="cd2">Nascimento</label><input id="cd2" type="date"></div></div>
  <div class="g2"><div><label for="ce">E-mail</label><input id="ce" type="email" autocomplete="email"></div><div><label for="ct">Celular com DDD</label><input id="ct" type="tel" autocomplete="tel"></div></div><label for="cs">Senha (10 ou mais caracteres)</label><input id="cs" type="password" autocomplete="new-password">
- <label style="display:flex;gap:10px;align-items:flex-start;color:var(--tx)"><input type="checkbox" id="ca" style="width:20px;min-height:20px;margin-top:3px"><span class="small">Li e aceito os <a href="/#privacidade" target="_blank">Termos de Uso e a Política de Privacidade</a>. Autorizo o uso dos meus dados para agendamento, pagamento e atendimento por telemedicina.</span></label>
+ <label style="display:flex;gap:10px;align-items:flex-start;color:var(--tx)"><input type="checkbox" id="ca" style="width:20px;min-height:20px;margin-top:3px"><span class="small">Li e aceito os <a href="/#privacidade" target="_blank">Termos de Uso e a Política de Privacidade</a>. Entendo que meus dados de saúde serão tratados pelo médico e pela clínica que me atenderem para a prestação do atendimento (tutela da saúde, art. 11, II, “f” da LGPD) e que meus dados de cadastro e pagamento são usados para o agendamento e a cobrança.</span></label>
  <button class="p" style="margin-top:12px;width:100%" onclick="cadastrar()">Criar conta</button></div>`}
 function aba(n){$('#f1').style.display=n===1?'':'none';$('#f2').style.display=n===2?'':'none';$('#tab1').className=n===1?'p':'';$('#tab2').className=n===2?'p':''}
-function entrar(){if(EU){location.hash='#/consultas';return}$('#app').innerHTML=`<div class="card" style="max-width:520px;margin:20px auto"><h1 style="margin-top:0">Área do Cliente</h1>${formEntrar()}</div>`}
+function entrar(){if(EU){location.hash='#/consultas';return}$('#app').innerHTML=`<div class="card" style="max-width:520px;margin:20px auto"><h1 style="margin-top:0">Área do Paciente</h1>${formEntrar()}</div>`}
 function modalEntrar(){$('#ovl').innerHTML=`<div class="ovl" role="dialog" aria-modal="true"><div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Entre para reservar</h2><button onclick="$('#ovl').innerHTML=''" aria-label="Fechar">✕</button></div>${formEntrar()}</div></div>`}
 async function aposEntrar(){await quem();$('#ovl').innerHTML='';if(depois){const f=depois;depois=null;f();rota()}else location.hash='#/consultas'}
 async function logar(){try{await api('/api/portal/login',{email:$('#le').value,senha:$('#ls').value});aposEntrar()}catch(e){$('#em').innerHTML=msg(e.message)}}

@@ -9,6 +9,18 @@
 #f_msg{min-height:20px;font-size:14px}#f_msg.err{color:var(--bad)}#f_msg.ok{color:var(--ok)}.priv{max-width:760px;color:var(--mut)}.priv b{color:var(--fg)}
 @media(max-width:860px){.plans{grid-template-columns:1fr}}
 section{scroll-margin-top:84px}.bar .btn{white-space:nowrap}
+
+.pac{position:relative;flex:none}
+.pac summary{list-style:none;display:flex;align-items:center;gap:12px;min-height:54px;padding:6px 22px 6px 14px;border-radius:16px;cursor:pointer;color:#fff;background:linear-gradient(135deg,#0d9e97,#14b8b0 55%,#1565d8);box-shadow:0 10px 24px -12px rgba(13,158,151,.9);user-select:none}
+.pac summary::-webkit-details-marker{display:none}
+.pac summary:hover{filter:brightness(1.06)}.pac summary:focus-visible{outline:3px solid var(--navy);outline-offset:2px}
+.pac summary svg{width:30px;height:30px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;flex:none}
+.pac summary b{display:block;font:700 17px/1.15 var(--f-body)}.pac summary small{display:block;font-size:12.5px;opacity:.92}
+.pacm{position:absolute;right:0;top:calc(100% + 10px);width:330px;background:var(--bg);border:1px solid var(--line);border-radius:16px;padding:8px;box-shadow:0 24px 48px -20px rgba(10,36,96,.45)}
+.pacm a{display:block;padding:10px 12px;border-radius:10px;text-decoration:none;color:var(--fg)}.pacm a:hover,.pacm a:focus-visible{background:var(--bg2)}
+.pacm b{display:block;font-size:15px}.pacm small{display:block;color:var(--mut);font-size:13px;line-height:1.35;margin-top:2px}
+.pacm .pace{margin-top:6px;text-align:center;font-weight:700;color:#fff;background:linear-gradient(180deg,#1b6fe3,#1259c4)}.pacm .pace:hover{background:#0b2a6b}
+@media(max-width:760px){.pac summary{min-height:48px;padding:6px 14px 6px 10px;gap:8px}.pac summary small{display:none}.pac summary b{font-size:15px}.pac summary svg{width:24px;height:24px}.pacm{width:min(330px,calc(100vw - 32px))}}
 </style>
 <title>MedNexo</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -179,7 +191,16 @@ footer{background:#eef3fb}
   <div class="bar wrap">
     <a class="brand" href="#topo" aria-label="MedNexo, início"><img src="symbol.png" alt=""><span><span class="a">Med</span><span class="b">Nexo</span></span></a>
     <nav aria-label="Seções"><a href="#recursos">Recursos</a><a href="#inteligencia">Inteligência</a><a href="#modulos">Módulos</a><a href="#planos">Planos</a><a href="#contratar">Contratar</a></nav>
-    <a class="btn pri" href="#contratar">Teste grátis</a>
+    <a class="btn pri hide-s" href="#contratar">Teste grátis</a>
+    <details class="pac">
+      <summary aria-label="Área do Paciente: agende sua consulta online"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="3"/><path d="M3 10h18M8 3v4M16 3v4M12 13.5v4M10 15.5h4"/></svg><span><b>Área do Paciente</b><small>Consulta online com hora marcada</small></span></summary>
+      <div class="pacm">
+        <a href="/portal#/"><b>Agendar consulta online</b><small>Escolha a especialidade, o médico e o horário livre</small></a>
+        <a href="/portal#/consultas"><b>Minhas consultas</b><small>Pagamento, entrar na sala de vídeo, documentos e nota fiscal</small></a>
+        <a href="/portal#/conta"><b>Meus dados</b><small>Celular e senha</small></a>
+        <a class="pace" href="/portal#/entrar">Entrar ou criar minha conta</a>
+      </div>
+    </details>
   </div>
 </header>
 
@@ -195,6 +216,7 @@ footer{background:#eef3fb}
         <a class="btn" href="#recursos">Ver recursos</a>
       </div>
       <p class="note">O ambiente de teste usa somente dados fictícios. Não digite dados reais de pacientes.</p>
+      <p class="note">É paciente? <a href="/portal">Agende uma consulta online na Área do Paciente</a>.</p>
     </div>
     <div class="lockup"><img src="lockup.png" alt="Logo MedNexo: cruz azul com um médico e a frase Seu paciente conectado, sua gestão integrada, seu cuidado contínuo" width="1000" height="357"></div>
   </div>
@@ -341,6 +363,7 @@ footer{background:#eef3fb}
     <p><b>Quem controla os dados.</b> O médico ou a clínica que contrata é o controlador dos dados dos pacientes; o MedNexo atua como operador, tratando os dados apenas para prestar o serviço.</p>
     <p><b>Isolamento.</b> Cada organização tem seus dados separados no banco, com controle de acesso por função e por hospital.</p>
     <p><b>Rastreabilidade.</b> Acessos e alterações são registrados em trilha de auditoria. Registros assinados não são apagados: correções entram como adendo.</p>
+    <p><b>Área do Paciente (pacientes).</b> Os dados de saúde de quem agenda pela Área do Paciente são tratados pelo médico e pela clínica que prestam o atendimento, com base na tutela da saúde (LGPD, art. 11, II, “f”). Os dados de cadastro e pagamento servem para o agendamento e a cobrança, que é processada pelo Asaas; o MedNexo não armazena dados de cartão.</p>
     <p><b>Voz.</b> O ditado usa o reconhecimento de voz do navegador, e o MedNexo não armazena áudio.</p>
     <p class="note">Este texto é preliminar e será substituído pelos Termos de Uso e pela Política de Privacidade definitivos, com revisão jurídica, antes da operação comercial.</p>
   </div>
@@ -368,5 +391,6 @@ f.addEventListener('submit',function(e){e.preventDefault();m.className='';m.text
   f.reset();m.className='ok';m.innerHTML='Ambiente criado! Seu teste de '+x.j.teste_dias+' dias começou. <a href="'+APP+'"><b>Entrar no sistema</b></a> com o e-mail e a senha que você acabou de definir.'})
  .catch(function(){bt.disabled=false;m.className='err';m.textContent='Falha de conexão. Tente novamente.'})})})();
 </script>
+<script>document.addEventListener('click',e=>{const d=document.querySelector('.pac');if(d&&d.open&&!d.contains(e.target))d.open=false});document.addEventListener('keydown',e=>{if(e.key==='Escape'){const d=document.querySelector('.pac');if(d)d.open=false}});</script>
 </body>
 </html>
