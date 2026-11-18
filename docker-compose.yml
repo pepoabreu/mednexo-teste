@@ -76,6 +76,21 @@ services:
       BACKUP_S3_REGIAO: ${BACKUP_S3_REGIAO:-auto}
     volumes:
       - backups:/backups
+  # Monitor privado de tudo o que está na conta Hostinger (somente leitura). O token da Hostinger fica SÓ neste container.
+  monitor:
+    build:
+      context: https://github.com/pepoabreu/mednexo-teste.git#main
+      dockerfile: monitor/Dockerfile
+    restart: unless-stopped
+    environment:
+      HOSTINGER_API_TOKEN: ${HOSTINGER_API_TOKEN:-}
+      MONITOR_SENHA_HASH: ${MONITOR_SENHA_HASH:-}
+      MONITOR_TOTP: ${MONITOR_TOTP:-}
+      MONITOR_URLS: ${MONITOR_URLS:-}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:-}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID:-}
+    volumes:
+      - monitordados:/dados
   tunel:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
@@ -92,3 +107,4 @@ services:
 volumes:
   dbdata:
   backups:
+  monitordados:
