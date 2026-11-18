@@ -18,6 +18,8 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 const need = (v, m) => { if (v === undefined || v === null || String(v).trim() === '') throw Object.assign(new Error(m), { http: 422 }); return typeof v === 'string' ? v.trim() : v; };
 const uuid = (v, m) => { if (!UUID.test(v || '')) throw Object.assign(new Error(m || 'identificador inválido'), { http: 422 }); return v; };
 
+const ipReq = req => String(req.headers['cf-connecting-ip'] || req.headers['x-real-ip'] || req.socket.remoteAddress || '').split(',')[0].trim() || null;
+const ctxReq = (req, org, uid) => ({ org, uid, ip: ipReq(req), ua: req.headers['user-agent'], rid: crypto.randomUUID() });
 async function login(req, res, b) {
   const email = need(b.email, 'e-mail obrigatório').toLowerCase(), senha = need(b.senha, 'senha obrigatória');
   const r = await pool.query(`SELECT u.id, u.nome_completo, u.senha_hash, u.ativo, u.tentativas_falhas, u.bloqueado_ate, m.organizacao_id, m.papel
@@ -26,12 +28,21 @@ async function login(req, res, b) {
   if (u && u.bloqueado_ate && new Date(u.bloqueado_ate) > new Date()) return send(res, 429, { erro: 'Conta temporariamente bloqueada por tentativas falhas. Tente em 15 minutos.' });
   if (!u || !u.ativo || !confereSenha(senha, u.senha_hash)) {
     if (u) await pool.query(`UPDATE mednexo.usuario SET tentativas_falhas = tentativas_falhas + 1, bloqueado_ate = CASE WHEN tentativas_falhas + 1 >= 5 THEN now() + interval '15 minutes' END WHERE id = $1`, [u.id]);
+    if (u) await seg.auditar(ctxReq(req, u.organizacao_id, u.id), 'login_falha', 'usuario', u.id);
     return send(res, 401, { erro: 'E-mail ou senha inválidos.' });
   }
-  await pool.query('UPDATE mednexo.usuario SET tentativas_falhas = 0, bloqueado_ate = NULL, ultimo_login_em = now() WHERE id = $1', [u.id]);
+  await pool.query('UPDATE mednexo.usuario SET tentativas_falhas = 0, bloqueado_ate = NULL WHERE id = $1', [u.id]);
+  const ctx = ctxReq(req, u.organizacao_id, u.id);
+  const et = await seg.aposSenha(u, ctx);
+  if (et.desafio) return send(res, 200, { mfa: true, desafio: et.desafio });
+  await seg.auditar(ctx, 'login', 'usuario', u.id, { fator: 'senha' });
+  abreSessao(req, res, u, et.sessao);
+}
+function abreSessao(req, res, u, extra = {}) {
+  pool.query('UPDATE mednexo.usuario SET ultimo_login_em = now() WHERE id = $1', [u.id]).catch(() => {});
   const tok = crypto.randomBytes(32).toString('hex');
-  sessions.set(tok, { uid: u.id, org: u.organizacao_id, papel: u.papel, nome: u.nome_completo, exp: Date.now() + 8 * 3600e3 });
-  send(res, 200, { ok: true, nome: u.nome_completo, papel: u.papel }, { 'Set-Cookie': `sid=${tok}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : ''}` });
+  sessions.set(tok, { uid: u.id, org: u.organizacao_id, papel: u.papel, nome: u.nome_completo, exp: Date.now() + 8 * 3600e3, ...extra });
+  send(res, 200, { ok: true, nome: u.nome_completo, papel: u.papel, mfa_pendente: !!extra.mfa_pendente }, { 'Set-Cookie': `sid=${tok}; HttpOnly; SameSite=Strict; Path=/; Max-Age=28800${req.headers['x-forwarded-proto'] === 'https' ? '; Secure' : ''}` });
 }
 
 async function cadastro(req, res, b) {
@@ -66,7 +77,7 @@ const docs = require('./documentos')(pool, { need, uuid }, clin);
 const ia = require('./ia')(pool, { need, uuid }, clin);
 const hosp = require('./hospitais')(pool, { need, uuid });
 const routes = {
-  'GET /api/me': async (s, c) => ({ nome: s.nome, papel: s.papel, ...(await contr.plano(c)), situacao: await asaas.situacao(s.org),
+  'GET /api/me': async (s, c) => ({ nome: s.nome, papel: s.papel, mfa_pendente: !!s.mfa_pendente, mfa_ativo: !!((await seg.mfa(s.uid)) || {}).ativado_em, emergencias_a_revisar: await seg.pendentesRevisao(s), ...(await contr.plano(c)), situacao: await asaas.situacao(s.org),
     hospitais: (await c.query('SELECT id, nome_fantasia FROM mednexo.hospital WHERE ativo ORDER BY nome_fantasia')).rows }),
   'GET /api/hospitais': async (s, c) => (await c.query(`SELECT h.id, h.nome_fantasia,
       (SELECT count(*)::int FROM mednexo.leito l WHERE l.hospital_id = h.id AND l.ativo) AS leitos,
@@ -113,6 +124,8 @@ const routes = {
 };
 
 Object.assign(routes, clin.routes, rep.routes, hosp.routes, docs.routes, ia.routes, tele.routes, equipe.routes, asaas.routes);
+const seg = require('./seguranca')(pool, { need, uuid, cifra: asaas.cifra, decifra: asaas.decifra, confereSenha, sessions });
+Object.assign(routes, seg.routes);
 const portal = require('./portal')(pool, { need, uuid, routes, asaas, hashSenha, confereSenha });
 Object.assign(routes, portal.routes);
 
@@ -133,15 +146,17 @@ const server = http.createServer(async (req, res) => {
     if (key === 'POST /api/contratar') { const ip = String(req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress).split(',')[0].trim(); return send(res, 200, await contr.contratar(ip, await readBody(req))); }
     if (key === 'POST /api/cadastro') return await cadastro(req, res, await readBody(req));
     if (key === 'POST /api/login') return await login(req, res, await readBody(req));
+    if (key === 'POST /api/login/2fa') { const u = await seg.segundaEtapa(await readBody(req), ctxReq(req)); return abreSessao(req, res, u, {}); }
     const tok = cookie(req).sid; const s = tok && sessions.get(tok);
     if (!s || s.exp < Date.now()) { if (tok) sessions.delete(tok); return send(res, 401, { erro: 'sessão expirada' }); }
-    if (key === 'POST /api/logout') { sessions.delete(tok); return send(res, 200, { ok: true }, { 'Set-Cookie': 'sid=; Max-Age=0; Path=/' }); }
+    if (key === 'POST /api/logout') { sessions.delete(tok); await seg.auditar(ctxReq(req, s.org, s.uid), 'logout', 'usuario', s.uid); return send(res, 200, { ok: true }, { 'Set-Cookie': 'sid=; Max-Age=0; Path=/' }); }
     if (key === 'GET /api/tele/eventos') return send(res, 200, await tele.eventosMedico({ org: s.org, uid: s.uid, ip: req.socket.remoteAddress, ua: req.headers['user-agent'], rid: crypto.randomUUID() }, Object.fromEntries(url.searchParams)));
+    if (s.mfa_pendente && !seg.LIVRES_MFA.has(key)) return send(res, 403, { erro: 'Configure a verificação em duas etapas para continuar (obrigatória para o seu perfil).', mfa_obrigatorio: true });
     if (req.method === 'POST' && !LIVRES_BLOQUEIO.has(key) && (await asaas.situacao(s.org)).bloqueada)
       return send(res, 402, { erro: 'Conta em modo somente leitura: a assinatura do MedNexo está pendente. Você pode consultar e exportar os prontuários; para voltar a registrar, regularize a assinatura (Equipe → Assinatura).' });
     const h = routes[key]; if (!h) return send(res, 404, { erro: 'rota inexistente' });
     const body = req.method === 'POST' ? await readBody(req, 14e6) : {};
-    const ctx = { org: s.org, uid: s.uid, ip: req.socket.remoteAddress, ua: req.headers['user-agent'], rid: crypto.randomUUID() };
+    const ctx = ctxReq(req, s.org, s.uid);
     const out = await pool.tx(c => h(s, c, Object.fromEntries(url.searchParams), body, ctx), ctx);
     if (out && out.__raw) { const f = out.__raw; res.writeHead(200, { 'Content-Type': f.mime, 'Content-Length': f.buf.length, 'Content-Disposition': `inline; filename="${encodeURIComponent(f.nome)}"`, 'Cache-Control': 'private, no-store', 'Content-Security-Policy': "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'" }); return res.end(f.buf); }
     send(res, 200, out);
@@ -158,7 +173,7 @@ const server = http.createServer(async (req, res) => {
   if (!tem) { console.log('Aplicando schema MEDNEXO...'); await pool.raw(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8')); console.log('Schema aplicado.'); }
   await clin.migrar();
   await rep.migrar();
-  await hosp.migrar(); await ia.migrar(); await contr.migrar(); await tele.migrar(); await equipe.migrar(); await asaas.migrar(); await portal.migrar();
+  await hosp.migrar(); await ia.migrar(); await contr.migrar(); await tele.migrar(); await equipe.migrar(); await asaas.migrar(); await portal.migrar(); await seg.migrar();
   await seed(pool, process.env);
   await adminExtra(pool, process.env).catch(e => console.error('admin extra:', e.message));
   await gestor(pool, process.env).catch(e => console.error('gestor:', e.message));

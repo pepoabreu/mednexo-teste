@@ -5,15 +5,26 @@
 const MIGRACAO = `
 ALTER TABLE mednexo.organizacao ADD COLUMN IF NOT EXISTS prontuario_compartilhado boolean NOT NULL DEFAULT false;
 ALTER TABLE mednexo.organizacao ADD COLUMN IF NOT EXISTS compartilhado_definido_em timestamptz;
+CREATE TABLE IF NOT EXISTS mednexo.acesso_emergencia (
+  id uuid PRIMARY KEY DEFAULT gen_random_uuid(), organizacao_id uuid NOT NULL REFERENCES mednexo.organizacao(id), usuario_id uuid NOT NULL REFERENCES mednexo.usuario(id),
+  paciente_id uuid NOT NULL REFERENCES mednexo.paciente(id), motivo text NOT NULL, justificativa text NOT NULL CHECK (length(justificativa) >= 30),
+  criado_em timestamptz NOT NULL DEFAULT now(), expira_em timestamptz NOT NULL, encerrado_em timestamptz,
+  revisado_em timestamptz, revisado_por uuid REFERENCES mednexo.usuario(id), parecer text, conclusao text CHECK (conclusao IN ('justificado','indevido')));
+CREATE INDEX IF NOT EXISTS ix_emerg_usuario ON mednexo.acesso_emergencia (usuario_id, paciente_id, expira_em);
+ALTER TABLE mednexo.acesso_emergencia ENABLE ROW LEVEL SECURITY;
+CREATE OR REPLACE FUNCTION mednexo.emergencia_ativa(p_pac uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = mednexo, public, pg_temp AS $$
+  SELECT ctx_papel() IN ('medico_administrador','medico_assistente') AND EXISTS (SELECT 1 FROM acesso_emergencia a WHERE a.usuario_id = ctx_usuario() AND a.organizacao_id = ctx_org()
+    AND a.paciente_id = p_pac AND a.encerrado_em IS NULL AND a.expira_em > now()) $$;
 CREATE OR REPLACE FUNCTION mednexo.org_compartilhada() RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = mednexo, public, pg_temp AS $$
   SELECT coalesce((SELECT prontuario_compartilhado FROM organizacao WHERE id = ctx_org()), false)
      AND ctx_papel() IN ('medico_administrador','medico_assistente') $$;
 CREATE OR REPLACE FUNCTION mednexo.acesso_internacao(p_int uuid, p_escrita boolean) RETURNS boolean
 LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = mednexo, public, pg_temp AS $$
-DECLARE v_h uuid; v_o uuid;
+DECLARE v_h uuid; v_o uuid; v_p uuid;
 BEGIN
-  SELECT hospital_id, organizacao_id INTO v_h, v_o FROM internacao WHERE id = p_int;
+  SELECT hospital_id, organizacao_id, paciente_id INTO v_h, v_o, v_p FROM internacao WHERE id = p_int;
   IF NOT FOUND OR v_o IS DISTINCT FROM ctx_org() THEN RETURN false; END IF;
+  IF emergencia_ativa(v_p) THEN RETURN true; END IF;
   IF NOT tem_vinculo_hospital(v_h) THEN RETURN false; END IF;
   IF na_equipe(p_int) THEN RETURN true; END IF;
   IF org_compartilhada() THEN RETURN true; END IF;
@@ -23,8 +34,12 @@ END $$;
 CREATE OR REPLACE FUNCTION mednexo.paciente_vinculado_a_meus_hospitais(p_pac uuid) RETURNS boolean
 LANGUAGE sql STABLE SECURITY DEFINER SET search_path = mednexo, public, pg_temp AS $$
   SELECT EXISTS (SELECT 1 FROM paciente_hospital ph WHERE ph.paciente_id = p_pac AND tem_vinculo_hospital(ph.hospital_id))
-      OR (org_compartilhada() AND EXISTS (SELECT 1 FROM paciente p WHERE p.id = p_pac AND p.organizacao_id = ctx_org())) $$;
-ALTER POLICY p_sel ON mednexo.internacao USING (organizacao_id = mednexo.ctx_org() AND mednexo.tem_vinculo_hospital(hospital_id) AND (criado_por = mednexo.ctx_usuario() OR mednexo.na_equipe(id) OR mednexo.ctx_papel() IN ('administrativo','medico_administrador','auditor') OR mednexo.org_compartilhada()));
+      OR (org_compartilhada() AND EXISTS (SELECT 1 FROM paciente p WHERE p.id = p_pac AND p.organizacao_id = ctx_org()))
+      OR emergencia_ativa(p_pac) $$;
+ALTER POLICY p_sel ON mednexo.internacao USING (organizacao_id = mednexo.ctx_org() AND ((mednexo.tem_vinculo_hospital(hospital_id) AND (criado_por = mednexo.ctx_usuario() OR mednexo.na_equipe(id) OR mednexo.ctx_papel() IN ('administrativo','medico_administrador','auditor') OR mednexo.org_compartilhada())) OR mednexo.emergencia_ativa(paciente_id)));
+CREATE OR REPLACE FUNCTION mednexo.emergencia_hospital(p_h uuid) RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = mednexo, public, pg_temp AS $$
+  SELECT EXISTS (SELECT 1 FROM internacao i WHERE i.hospital_id = p_h AND i.organizacao_id = ctx_org() AND emergencia_ativa(i.paciente_id)) $$;
+ALTER POLICY p_sel ON mednexo.hospital USING (organizacao_id = mednexo.ctx_org() AND (mednexo.tem_vinculo_hospital(id) OR mednexo.tem_permissao('cadastro.hospital.gerir') OR mednexo.emergencia_hospital(id)));
 ALTER POLICY p_upd ON mednexo.internacao USING ((organizacao_id = mednexo.ctx_org() AND mednexo.tem_vinculo_hospital(hospital_id) AND (criado_por = mednexo.ctx_usuario() OR mednexo.na_equipe(id) OR mednexo.ctx_papel() IN ('administrativo','medico_administrador','auditor') OR mednexo.org_compartilhada())) AND (organizacao_id = mednexo.ctx_org() AND mednexo.tem_vinculo_hospital(hospital_id) AND mednexo.tem_permissao('internacao.escrever')));
 `;
 const PAPEIS = { medico_assistente: 'Médico(a)', medico_administrador: 'Médico(a) gestor(a)', enfermagem: 'Enfermagem', administrativo: 'Administrativo', auditor: 'Auditor(a)' };
