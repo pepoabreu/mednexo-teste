@@ -13,7 +13,7 @@ services:
     restart: unless-stopped
     depends_on: [db]
     ports:
-      - "8086:8080"
+      - "127.0.0.1:8086:8080"
     environment:
       PGHOST: db
       PGUSER: postgres
@@ -53,7 +53,7 @@ services:
       dockerfile: Dockerfile.site
     restart: unless-stopped
     ports:
-      - "8085:80"
+      - "127.0.0.1:8085:80"
   # Tunel nomeado da Cloudflare (endereco fixo com HTTPS). O token vem do ambiente do servidor, nunca do repositorio.
   # Rotas publicas (painel da Cloudflare): mednexo.iavtech.com.br -> http://web:80 ; app.mednexo.iavtech.com.br -> http://app:8080
   # Backup diário cifrado (AES-256) com teste automático de restauração; cópia externa opcional (S3/Cloudflare R2).
