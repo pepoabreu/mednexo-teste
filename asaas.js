@@ -56,7 +56,7 @@ const EVENTOS = ['PAYMENT_CREATED', 'PAYMENT_UPDATED', 'PAYMENT_CONFIRMED', 'PAY
 module.exports = function (pool, { need, uuid }, env = process.env) {
   const err = (m, http = 422) => Object.assign(new Error(m), { http });
   const BASE = (env.ASAAS_BASE_URL || (env.ASAAS_AMBIENTE === 'producao' ? 'https://api.asaas.com/v3' : 'https://api-sandbox.asaas.com/v3')).replace(/\/$/, '');
-  const CHAVE = env.ASAAS_API_KEY || '';
+  const CHAVE = String(env.ASAAS_API_KEY || '').trim().replace(/^'(.*)'$/, '$1').replace(/^"(.*)"$/, '$1'); // tolera aspas usadas para proteger o '$' da chave no .env
   const TAXA = Number(env.TAXA_PLATAFORMA || 10);
   const URL_PUB = (env.URL_PUBLICA || '').replace(/\/$/, '');
   const precoPlano = p => { const v = Number(env['PRECO_' + p.toUpperCase()] || 0); return v > 0 ? v : null; };
