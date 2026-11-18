@@ -113,6 +113,8 @@ const routes = {
 };
 
 Object.assign(routes, clin.routes, rep.routes, hosp.routes, docs.routes, ia.routes, tele.routes, equipe.routes, asaas.routes);
+const portal = require('./portal')(pool, { need, uuid, routes, asaas, hashSenha, confereSenha });
+Object.assign(routes, portal.routes);
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x'); const key = `${req.method} ${url.pathname}`;
@@ -121,11 +123,13 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); return res.end(HTML()); }
     if (req.method === 'GET' && /^\/assets\/(symbol|lockup|icon-192)\.png$/.test(url.pathname)) { const f = path.join(__dirname, 'assets', path.basename(url.pathname)); res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' }); return res.end(fs.readFileSync(f)); }
     if (req.method === 'GET' && url.pathname === '/tele') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' }); return res.end(fs.readFileSync(path.join(__dirname, 'public', 'tele.html'))); }
-    if (key === 'GET /health') { await pool.query('SELECT 1'); return send(res, 200, { ok: true }); }
+    if (key === 'GET /health') { await pool.query('SELECT 1'); return send(res, 200, { ok: true, asaas: asaas.configurado() ? (asaas.estado.conectado === null ? 'verificando' : asaas.estado.conectado ? 'conectado' : 'falha') : 'desativado', webhook_asaas: asaas.estado.webhook }); }
+    if (req.method === 'GET' && url.pathname === '/portal') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' }); return res.end(fs.readFileSync(path.join(__dirname, 'public', 'portal.html'))); }
     if (!url.pathname.startsWith('/api/')) return send(res, 404, { erro: 'não encontrado' });
     if (req.method === 'POST' && req.headers['content-type'] && !/json/.test(req.headers['content-type'])) return send(res, 415, { erro: 'use JSON' });
     if (key === 'POST /api/asaas/webhook') return asaas.webhook(req, res, readBody, send);
     if (await tele.publico(req, res, key, url, readBody, send)) return;
+    if (await portal.publico(req, res, key, url, readBody, send)) return;
     if (key === 'POST /api/contratar') { const ip = String(req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress).split(',')[0].trim(); return send(res, 200, await contr.contratar(ip, await readBody(req))); }
     if (key === 'POST /api/cadastro') return await cadastro(req, res, await readBody(req));
     if (key === 'POST /api/login') return await login(req, res, await readBody(req));
@@ -154,7 +158,7 @@ const server = http.createServer(async (req, res) => {
   if (!tem) { console.log('Aplicando schema MEDNEXO...'); await pool.raw(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8')); console.log('Schema aplicado.'); }
   await clin.migrar();
   await rep.migrar();
-  await hosp.migrar(); await ia.migrar(); await contr.migrar(); await tele.migrar(); await equipe.migrar(); await asaas.migrar();
+  await hosp.migrar(); await ia.migrar(); await contr.migrar(); await tele.migrar(); await equipe.migrar(); await asaas.migrar(); await portal.migrar();
   await seed(pool, process.env);
   await adminExtra(pool, process.env).catch(e => console.error('admin extra:', e.message));
   await gestor(pool, process.env).catch(e => console.error('gestor:', e.message));

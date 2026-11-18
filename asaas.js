@@ -123,7 +123,8 @@ module.exports = function (pool, { need, uuid }, env = process.env) {
       PAGO.has(p.status) ? (p.confirmedDate || p.paymentDate || new Date().toISOString()) : null, p.invoiceUrl || null, p.description || null])).rows[0];
     return r;
   }
-  let aoPagarTele = () => {};
+  const ouvintesPago = [];
+  const aoPagarTele = id => { for (const f of ouvintesPago) Promise.resolve().then(() => f(id)).catch(e => console.error('pós-pagamento:', e.message)); };
   async function efeitos(cob) {
     if (cob.tipo === 'assinatura') {
       if (PAGO.has(cob.status)) await pool.query(`UPDATE mednexo.organizacao SET plano = 'ativo', assinatura_status = 'ativa' WHERE id = $1`, [cob.organizacao_id]);
@@ -277,11 +278,17 @@ module.exports = function (pool, { need, uuid }, env = process.env) {
       if (i) return (await pool.query(`UPDATE mednexo.nota_fiscal SET status = $2, pdf_url = coalesce($3, pdf_url), numero = coalesce($4, numero), erro = $5, atualizado_em = now() WHERE id = $1 RETURNING *`, [n.id, i.status, i.pdfUrl || null, i.number || null, i.status === 'ERROR' ? (i.statusDescription || 'erro na emissão') : null])).rows[0]; }
     return n;
   }
+  async function cancelarCobrancaTele(teleId) {
+    const cob = (await pool.query(`SELECT * FROM mednexo.cobranca WHERE teleconsulta_id = $1 ORDER BY criado_em DESC LIMIT 1`, [teleId])).rows[0];
+    if (!cob || PAGO.has(cob.status) || cob.status === 'DELETED') return;
+    const k = await contaMedico(cob.conta_usuario_id); await api(k.chave, 'DELETE', `/payments/${cob.asaas_payment_id}`).catch(() => null);
+    await pool.query(`UPDATE mednexo.cobranca SET status = 'DELETED', atualizado_em = now() WHERE id = $1`, [cob.id]);
+  }
   async function cobrancaTeleResumo(ids) {
     if (!ids.length) return {};
     const r = (await pool.query(`SELECT DISTINCT ON (c.teleconsulta_id) c.teleconsulta_id, c.status, c.valor, c.valor_liquido, n.status AS nota_status, n.pdf_url FROM mednexo.cobranca c LEFT JOIN mednexo.nota_fiscal n ON n.cobranca_id = c.id WHERE c.teleconsulta_id = ANY($1::uuid[]) ORDER BY c.teleconsulta_id, c.criado_em DESC, n.criado_em DESC`, ['{' + ids.join(',') + '}'])).rows;
     return Object.fromEntries(r.map(x => [x.teleconsulta_id, x]));
   }
   return { routes: R, webhook, situacao, invalida, iniciar, migrar: () => pool.raw(MIGRACAO), cobrarTele, statusTele, reembolsarTele, notaTele, notaStatus, cobrancaTeleResumo, contaMedico, TAXA, PAGO,
-    aoPagar: f => { aoPagarTele = f; }, configurado };
+    aoPagar: f => { ouvintesPago.push(f); }, configurado, cifra, decifra, cancelarCobrancaTele, estado };
 };

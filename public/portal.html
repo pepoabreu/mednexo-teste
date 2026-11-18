@@ -1,0 +1,130 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b2a6b">
+<link rel="icon" href="/assets/icon-192.png">
+<title>MedNexo — Área do Cliente</title>
+<style>
+:root{--bg:#f3f6fb;--card:#fbfcfe;--tx:#0a1f4d;--mut:#4f6283;--br:#d9e2f0;--pri:#1565d8;--navy:#0a2460;--ok:#0f7a4f;--bad:#b42318;--chip:#e6eefb}
+@media(prefers-color-scheme:dark){:root{--bg:#08152e;--card:#10264d;--tx:#e8eefb;--mut:#9db0d3;--br:#223a68;--pri:#4d94ff;--navy:#cfe0ff;--chip:#173a72}}
+*{box-sizing:border-box}html,body{margin:0}body{font:16px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--tx);overflow-x:hidden}
+a{color:var(--pri)}
+header{position:sticky;top:0;z-index:5;display:flex;align-items:center;gap:10px;padding:max(10px,env(safe-area-inset-top)) 16px 10px;background:linear-gradient(100deg,#0b2a6b,#1565d8 75%,#14b8b0 140%);color:#fff}
+header .logo{background:#fff;border-radius:9px;padding:3px;display:inline-flex}header .logo img{height:28px;display:block}
+header b{font-size:17px;white-space:nowrap}header nav{margin-left:auto;display:flex;gap:6px;flex-wrap:wrap;justify-content:flex-end}
+header nav a{color:#fff;text-decoration:none;font-size:14px;padding:8px 12px;border-radius:999px;border:1px solid #ffffff55}header nav a.on{background:#ffffff26}
+main{max-width:1040px;margin:0 auto;padding:18px 16px 60px}
+h1{font-size:clamp(24px,4vw,34px);line-height:1.15;margin:8px 0 6px}h2{font-size:20px;margin:0 0 8px}.mut{color:var(--mut)}.small{font-size:14px}
+.card{background:var(--card);border:1px solid var(--br);border-radius:16px;padding:18px;box-shadow:0 1px 2px #0a24600f,0 12px 32px -22px #0a246055;margin:14px 0}
+button,.btn{font:inherit;border-radius:999px;border:1px solid var(--br);background:var(--card);color:var(--tx);min-height:44px;padding:0 18px;cursor:pointer;display:inline-flex;align-items:center;justify-content:center;text-decoration:none;gap:6px}
+button.p,.btn.p{background:var(--pri);border-color:var(--pri);color:#fff;font-weight:600}button:disabled{opacity:.55;cursor:default}
+button:focus-visible,input:focus-visible,select:focus-visible,a:focus-visible{outline:3px solid #14b8b0;outline-offset:2px}
+input,select{width:100%;min-height:46px;border:1px solid var(--br);border-radius:12px;padding:0 12px;font:inherit;background:var(--bg);color:var(--tx)}
+label{display:block;font-size:14px;color:var(--mut);margin:10px 0 4px}
+.chips{display:flex;gap:8px;flex-wrap:wrap;margin:10px 0}.chip{border:1px solid var(--br);background:var(--card);border-radius:999px;padding:8px 14px;cursor:pointer;font-size:14px}.chip.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(290px,1fr));gap:14px}
+.med h3{margin:0;font-size:18px}.med .esp{color:var(--pri);font-weight:600;font-size:14px}.preco{font-weight:700;font-size:18px}
+.dias{display:grid;gap:12px}.dia h3{margin:0 0 6px;font-size:15px;text-transform:capitalize}.slots{display:flex;flex-wrap:wrap;gap:8px}
+.slot{border:1px solid var(--br);background:var(--card);border-radius:10px;padding:10px 14px;cursor:pointer;font-weight:600;min-width:74px;text-align:center}.slot.on{background:var(--pri);color:#fff;border-color:var(--pri)}
+.err{background:#fde8e6;color:#7a1a12;border-radius:12px;padding:10px 12px;margin:8px 0}.okm{background:#e3f6ec;color:#0b5135;border-radius:12px;padding:10px 12px;margin:8px 0}
+.tag{display:inline-block;font-size:13px;padding:3px 10px;border-radius:999px;background:var(--chip)}.tag.ok{background:#d9f2e6;color:#0b5135}.tag.bad{background:#fde8e6;color:#7a1a12}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}.g2{display:grid;grid-template-columns:1fr 1fr;gap:0 12px}
+.ovl{position:fixed;inset:0;background:#0a1f4d99;display:flex;align-items:flex-end;justify-content:center;z-index:20}.ovl .card{width:min(520px,100%);max-height:92vh;overflow:auto;margin:0;border-radius:18px 18px 0 0;padding-bottom:max(18px,env(safe-area-inset-bottom))}
+@media(min-width:700px){.ovl{align-items:center}.ovl .card{border-radius:18px}}
+@media(max-width:560px){.g2{grid-template-columns:1fr}header b{display:none}}
+</style>
+</head>
+<body>
+<header><span class="logo"><img src="/assets/symbol.png" alt=""></span><b>MedNexo · Área do Cliente</b><nav id="nav"></nav></header>
+<main id="app"><div class="card">Carregando…</div></main>
+<div id="ovl"></div>
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'})[c]);
+const reais=v=>Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+const TZ={timeZone:'America/Sao_Paulo'};
+const dia=d=>new Date(d).toLocaleDateString('pt-BR',{...TZ,weekday:'long',day:'2-digit',month:'long'});
+const hora=d=>new Date(d).toLocaleTimeString('pt-BR',{...TZ,hour:'2-digit',minute:'2-digit'});
+const dataHora=d=>new Date(d).toLocaleString('pt-BR',{...TZ,weekday:'short',day:'2-digit',month:'2-digit',hour:'2-digit',minute:'2-digit'});
+async function api(u,b){const r=await fetch(u,{method:b?'POST':'GET',headers:b?{'Content-Type':'application/json'}:{},body:b?JSON.stringify(b):undefined,credentials:'same-origin'});const j=await r.json().catch(()=>({}));if(!r.ok){const e=new Error(j.erro||('Erro '+r.status));e.status=r.status;throw e}return j}
+const msg=(t,ok)=>`<div class="${ok?'okm':'err'}" role="status">${esc(t)}</div>`;
+let EU=null,ESP=null,depois=null;
+async function quem(){try{EU=await api('/api/portal/eu')}catch(_){EU=null}nav()}
+function nav(){const r=location.hash||'#/';$('#nav').innerHTML=`<a href="#/" class="${r==='#/'||r.startsWith('#/medico')?'on':''}">Agendar</a>`+(EU?`<a href="#/consultas" class="${r==='#/consultas'?'on':''}">Minhas consultas</a><a href="#/conta" class="${r==='#/conta'?'on':''}">Meus dados</a>`:`<a href="#/entrar" class="${r==='#/entrar'?'on':''}">Entrar</a>`)}
+async function rota(){nav();const r=location.hash||'#/';window.scrollTo(0,0);
+ if(r.startsWith('#/medico/'))return medico(r.split('/')[2]);if(r==='#/consultas')return consultas();if(r==='#/conta')return contaV();if(r==='#/entrar')return entrar();return inicio()}
+window.addEventListener('hashchange',rota);
+
+// ---------- busca de médicos
+async function inicio(){const A=$('#app');A.innerHTML=`<h1>Consulta online com hora marcada</h1><p class="mut">Escolha a especialidade, veja os horários livres e pague por Pix ou cartão. A consulta acontece por vídeo, no celular ou no computador.</p>
+ <div class="card"><label for="bq">Buscar médico ou especialidade</label><input id="bq" placeholder="ex.: psiquiatria, Dra. Ana" oninput="clearTimeout(window._b);window._b=setTimeout(lista,300)"><div class="chips" id="esp"></div></div><div id="lista" class="grid"></div>`;
+ try{const e=await api('/api/portal/especialidades');$('#esp').innerHTML=[`<span class="chip ${!ESP?'on':''}" onclick="ESP=null;inicio()">Todas</span>`,...e.map(x=>`<span class="chip ${ESP===x.e?'on':''}" onclick='ESP=${JSON.stringify(x.e)};inicio()'>${esc(x.e)} (${x.n})</span>`)].join('')}catch(_){}lista()}
+async function lista(){const L=$('#lista');if(!L)return;L.innerHTML='<p class="mut">Carregando médicos…</p>';try{const q=new URLSearchParams();if(ESP)q.set('especialidade',ESP);const b=($('#bq')||{}).value;if(b)q.set('busca',b);
+ const l=await api('/api/portal/medicos?'+q);L.innerHTML=l.length?l.map(m=>`<div class="card med" style="margin:0"><h3>${esc(m.nome)}</h3><div class="small mut">${esc(m.crm)}${m.rqe?' · RQE '+esc(m.rqe):''}</div>
+ <div class="esp">${esc(m.especialidade||'Clínica médica')}</div>${m.apresentacao?`<p class="small">${esc(m.apresentacao)}</p>`:''}
+ <div class="row" style="justify-content:space-between;margin-top:8px"><span class="preco">${reais(m.valor)}</span><span class="small mut">${m.duracao_min} min · ${m.proximo?'próximo: '+esc(dataHora(m.proximo)):'sem horários nos próximos 14 dias'}</span></div>
+ <a class="btn p" style="margin-top:10px;width:100%" href="#/medico/${m.id}">Ver horários</a></div>`).join(''):'<p class="mut">Nenhum médico com agenda aberta para esta busca.</p>'}catch(e){L.innerHTML=msg(e.message)}}
+
+// ---------- horários de um médico
+let ESCOLHA=null;
+async function medico(id){const A=$('#app');A.innerHTML='<div class="card">Carregando horários…</div>';ESCOLHA=null;let d;try{d=await api('/api/portal/horarios?medico='+id)}catch(e){A.innerHTML=msg(e.message)+'<a href="#/">Voltar</a>';return}
+ const m=d.medico,g={};for(const h of d.horarios){const k=new Date(h).toLocaleDateString('en-CA',TZ);(g[k]=g[k]||[]).push(h)}
+ A.innerHTML=`<p><a href="#/">← Voltar</a></p><div class="card"><h1 style="margin-top:0">${esc(m.nome)}</h1><div class="mut small">${esc(m.crm)}${m.rqe?' · RQE '+esc(m.rqe):''} · ${esc(m.especialidade||'Clínica médica')}</div>${m.apresentacao?`<p>${esc(m.apresentacao)}</p>`:''}<p><b>${reais(m.valor)}</b> · consulta de ${m.duracao_min} min por vídeo</p></div>
+ <div class="card"><h2>Escolha um horário</h2><p class="mut small">Horários de Brasília.</p>${Object.keys(g).length?`<div class="dias">${Object.entries(g).map(([k,hs])=>`<div class="dia"><h3>${esc(dia(hs[0]))}</h3><div class="slots">${hs.map(h=>`<button class="slot" data-h="${h}" onclick="escolhe(this)">${hora(h)}</button>`).join('')}</div></div>`).join('')}</div>`:'<p class="mut">Sem horários livres no momento.</p>'}
+ <div id="conf" style="margin-top:14px"></div></div>`;window._med=m}
+function escolhe(b){document.querySelectorAll('.slot').forEach(x=>x.classList.remove('on'));b.classList.add('on');ESCOLHA=b.dataset.h;
+ $('#conf').innerHTML=`<div class="okm">Horário escolhido: <b>${esc(dataHora(ESCOLHA))}</b> · ${reais(window._med.valor)}</div><button class="p" onclick="reservar()">${EU?'Reservar e pagar':'Entrar para reservar'}</button><p class="small mut">O horário fica reservado por 15 minutos para o pagamento. Pagamentos não são reembolsados em caso de falta; se o médico não puder atender, o valor é estornado.</p>`;$('#conf').scrollIntoView({behavior:'smooth',block:'center'})}
+async function reservar(){if(!EU){depois=()=>{location.hash='#/medico/'+window._med.id};return modalEntrar()}
+ const b=$('#conf button');b.disabled=true;try{const r=await api('/api/portal/agendar',{medico:window._med.id,inicio:ESCOLHA});mostraPagamento(r.id,r.pagamento,r.reservado_ate)}catch(e){b.disabled=false;$('#conf').insertAdjacentHTML('afterbegin',msg(e.message));if(e.status===409)setTimeout(()=>medico(window._med.id),1500)}}
+
+// ---------- pagamento
+let _pgT=null;
+function mostraPagamento(id,pg,ate){clearTimeout(_pgT);const fim=new Date(ate).getTime();
+ $('#ovl').innerHTML=`<div class="ovl" role="dialog" aria-modal="true" aria-label="Pagamento"><div class="card"><h2>Pagamento da consulta</h2><p><b>${reais(pg.valor)}</b> · reserva válida até <b>${hora(ate)}</b> (<span id="cd"></span>)</p>
+ ${pg.pix?`<img alt="QR Code Pix" src="data:image/png;base64,${pg.pix.imagem}" style="width:210px;max-width:100%;display:block;margin:8px auto;background:#fff;padding:8px;border-radius:12px"><label for="pcc">Pix copia e cola</label><div class="row"><input id="pcc" readonly value="${esc(pg.pix.copia_cola)}" style="flex:1;min-width:0"><button onclick="navigator.clipboard.writeText($('#pcc').value);this.textContent='Copiado'">Copiar</button></div>`:''}
+ ${pg.link?`<p><a href="${esc(pg.link)}" target="_blank" rel="noopener"><b>Pagar com cartão ou ver outras formas</b></a></p>`:''}<p class="mut small" id="pst">Aguardando a confirmação do pagamento…</p><div class="row"><button onclick="fecharPg()">Fechar (pagar depois em Minhas consultas)</button></div></div></div>`;
+ const tick=async()=>{const s=Math.max(0,Math.round((fim-Date.now())/1000));if($('#cd'))$('#cd').textContent=`${Math.floor(s/60)}:${String(s%60).padStart(2,'0')}`;
+  try{const r=await api('/api/portal/pagamento?id='+id);if(r.status==='confirmado'||r.pago){fecharPg();location.hash='#/consultas';setTimeout(()=>$('#app').insertAdjacentHTML('afterbegin',msg('Pagamento confirmado! Sua consulta está agendada.',1)),300);return}
+  if(r.status==='expirado'){$('#pst').innerHTML='A reserva expirou. Escolha outro horário.';return}}catch(_){}
+  _pgT=setTimeout(tick,5000)};tick()}
+function fecharPg(){clearTimeout(_pgT);$('#ovl').innerHTML=''}
+
+// ---------- minhas consultas
+const ST={reservado:['aguardando pagamento',''],confirmado:['confirmada','ok'],expirado:['reserva expirada','bad'],cancelado_paciente:['cancelada','bad'],cancelado_medico:['cancelada pelo médico','bad']};
+async function consultas(){const A=$('#app');if(!EU){location.hash='#/entrar';return}A.innerHTML='<h1>Minhas consultas</h1><div id="lc">Carregando…</div>';try{const l=await api('/api/portal/consultas');
+ $('#lc').innerHTML=l.length?l.map(c=>{const [t,cl]=ST[c.status]||[c.status,''];const ini=new Date(c.inicio).getTime(),agora=Date.now();const podeEntrar=c.status==='confirmado'&&agora>ini-30*60e3&&agora<new Date(c.fim).getTime()+60*60e3&&c.tele_status!=='encerrada';
+ return `<div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">${esc(dataHora(c.inicio))}</h2><span class="tag ${cl}">${esc(t)}${c.reembolsado_em?' · estornada':''}</span></div>
+ <p style="margin:6px 0">${esc(c.medico)} <span class="mut small">· CRM ${esc(c.crm||'')}/${esc(c.uf||'')}${c.especialidade?' · '+esc(c.especialidade):''}</span> · ${reais(c.valor)}</p>
+ <div class="row">${c.status==='reservado'?`<button class="p" onclick="pagar('${c.id}')">Pagar agora</button><button onclick="cancelar('${c.id}')">Cancelar</button>`:''}
+ ${podeEntrar?`<button class="p" onclick="sala('${c.id}')">Entrar na consulta</button>`:c.status==='confirmado'&&agora<ini-30*60e3?'<span class="small mut">O botão para entrar aparece 30 minutos antes.</span>':''}
+ ${c.nota_pdf?`<a class="btn" href="${esc(c.nota_pdf)}" target="_blank" rel="noopener">Nota fiscal</a>`:''}</div>
+ ${c.documentos.length?`<p class="small" style="margin-bottom:0"><b>Documentos do médico:</b> ${c.documentos.map(d=>`<a href="/api/portal/documento?id=${c.id}&doc=${d.id}">${esc(d.nome)}</a>`).join(' · ')}</p>`:''}</div>`}).join(''):'<div class="card"><p>Você ainda não tem consultas.</p><a class="btn p" href="#/">Agendar uma consulta</a></div>'}catch(e){$('#lc').innerHTML=msg(e.message)}}
+async function pagar(id){try{const r=await api('/api/portal/pagamento?id='+id);if(r.pagamento)mostraPagamento(id,r.pagamento,new Date(Date.now()+60e3).toISOString());else consultas()}catch(e){alert(e.message)}}
+async function cancelar(id){if(!confirm('Cancelar esta reserva?'))return;try{await api('/api/portal/cancelar',{id});consultas()}catch(e){alert(e.message)}}
+async function sala(id){try{const r=await api('/api/portal/sala?id='+id);location.href=r.link}catch(e){alert(e.message)}}
+
+// ---------- conta
+function formEntrar(){return `<div id="em"></div><div class="row" style="gap:6px;margin-bottom:6px"><button class="p" id="tab1" onclick="aba(1)">Já tenho conta</button><button id="tab2" onclick="aba(2)">Criar conta</button></div>
+ <div id="f1"><label for="le">E-mail</label><input id="le" type="email" autocomplete="username"><label for="ls">Senha</label><input id="ls" type="password" autocomplete="current-password" onkeydown="if(event.key==='Enter')logar()"><button class="p" style="margin-top:12px;width:100%" onclick="logar()">Entrar</button></div>
+ <div id="f2" style="display:none"><label for="cn">Nome completo</label><input id="cn" autocomplete="name"><div class="g2"><div><label for="cc">CPF</label><input id="cc" inputmode="numeric"></div><div><label for="cd2">Nascimento</label><input id="cd2" type="date"></div></div>
+ <div class="g2"><div><label for="ce">E-mail</label><input id="ce" type="email" autocomplete="email"></div><div><label for="ct">Celular com DDD</label><input id="ct" type="tel" autocomplete="tel"></div></div><label for="cs">Senha (10 ou mais caracteres)</label><input id="cs" type="password" autocomplete="new-password">
+ <label style="display:flex;gap:10px;align-items:flex-start;color:var(--tx)"><input type="checkbox" id="ca" style="width:20px;min-height:20px;margin-top:3px"><span class="small">Li e aceito os <a href="/#privacidade" target="_blank">Termos de Uso e a Política de Privacidade</a>. Autorizo o uso dos meus dados para agendamento, pagamento e atendimento por telemedicina.</span></label>
+ <button class="p" style="margin-top:12px;width:100%" onclick="cadastrar()">Criar conta</button></div>`}
+function aba(n){$('#f1').style.display=n===1?'':'none';$('#f2').style.display=n===2?'':'none';$('#tab1').className=n===1?'p':'';$('#tab2').className=n===2?'p':''}
+function entrar(){if(EU){location.hash='#/consultas';return}$('#app').innerHTML=`<div class="card" style="max-width:520px;margin:20px auto"><h1 style="margin-top:0">Área do Cliente</h1>${formEntrar()}</div>`}
+function modalEntrar(){$('#ovl').innerHTML=`<div class="ovl" role="dialog" aria-modal="true"><div class="card"><div class="row" style="justify-content:space-between"><h2 style="margin:0">Entre para reservar</h2><button onclick="$('#ovl').innerHTML=''" aria-label="Fechar">✕</button></div>${formEntrar()}</div></div>`}
+async function aposEntrar(){await quem();$('#ovl').innerHTML='';if(depois){const f=depois;depois=null;f();rota()}else location.hash='#/consultas'}
+async function logar(){try{await api('/api/portal/login',{email:$('#le').value,senha:$('#ls').value});aposEntrar()}catch(e){$('#em').innerHTML=msg(e.message)}}
+async function cadastrar(){try{await api('/api/portal/cadastro',{nome:$('#cn').value,cpf:$('#cc').value,nascimento:$('#cd2').value,email:$('#ce').value,celular:$('#ct').value,senha:$('#cs').value,aceite:$('#ca').checked});aposEntrar()}catch(e){$('#em').innerHTML=msg(e.message)}}
+async function contaV(){if(!EU){location.hash='#/entrar';return}const u=await api('/api/portal/eu');$('#app').innerHTML=`<h1>Meus dados</h1><div class="card"><div id="cm"></div><p><b>${esc(u.nome)}</b><br><span class="mut">${esc(u.email)} · CPF ${esc(u.cpf)}</span></p>
+ <label for="mc">Celular</label><input id="mc" value="${esc(u.celular)}"><h2 style="margin-top:18px">Trocar senha</h2><div class="g2"><div><label for="ma">Senha atual</label><input id="ma" type="password" autocomplete="current-password"></div><div><label for="mn">Nova senha</label><input id="mn" type="password" autocomplete="new-password"></div></div>
+ <div class="row" style="margin-top:12px"><button class="p" onclick="salvaConta()">Salvar</button><button onclick="sair()">Sair da conta</button></div></div>`}
+async function salvaConta(){try{await api('/api/portal/eu',{celular:$('#mc').value,senha_atual:$('#ma').value,nova_senha:$('#mn').value||undefined});$('#cm').innerHTML=msg('Dados salvos.',1);$('#ma').value='';$('#mn').value=''}catch(e){$('#cm').innerHTML=msg(e.message)}}
+async function sair(){await api('/api/portal/sair',{});EU=null;location.hash='#/'}
+quem().then(rota);
+</script>
+</body>
+</html>
