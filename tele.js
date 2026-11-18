@@ -53,6 +53,9 @@ GRANT SELECT, INSERT, UPDATE ON mednexo.teleconsulta TO mednexo_app;
 GRANT SELECT, INSERT ON mednexo.tele_mensagem, mednexo.tele_anexo TO mednexo_app;
 `;
 
+const MAGICO = { 'application/pdf': b => b.subarray(0, 4).toString() === '%PDF', 'image/jpeg': b => b[0] === 0xff && b[1] === 0xd8 && b[2] === 0xff,
+  'image/png': b => b.subarray(0, 4).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47])), 'image/webp': b => b.subarray(0, 4).toString() === 'RIFF' && b.subarray(8, 12).toString() === 'WEBP',
+  'image/heic': b => b.subarray(4, 8).toString() === 'ftyp', 'image/heif': b => b.subarray(4, 8).toString() === 'ftyp' };
 const MIMES = { 'application/pdf': 1, 'image/jpeg': 1, 'image/png': 1, 'image/webp': 1, 'image/heic': 1, 'image/heif': 1 };
 const MAX_ANEXO = 10 * 1024 * 1024;
 
@@ -105,6 +108,8 @@ module.exports = function (pool, { uuid }) {
     const buf = Buffer.from(String(b.base64 || ''), 'base64'); if (!buf.length) throw err('Arquivo vazio.'); if (buf.length > MAX_ANEXO) throw err('Arquivo acima de 10 MB.', 413);
     const cat = ['exame', 'receita', 'laudo', 'outro'].includes(b.categoria) ? b.categoria : 'outro';
     const nome = String(b.nome || 'arquivo').replace(/[\\/\0]/g, '_').slice(0, 150);
+    if (!MAGICO[mime](buf)) throw err(`O conteúdo de "${nome}" não corresponde ao tipo ${mime}.`, 415);
+    await require('./antivirus').verificar(buf, nome);
     const a = (await q.query(`INSERT INTO mednexo.tele_anexo (teleconsulta_id, enviado_por, categoria, nome, mime, tamanho, sha256, conteudo) VALUES ($1,$2,$3,$4,$5,$6,decode($7,'hex'),decode($8,'base64')) RETURNING id, enviado_por, categoria, nome, mime, tamanho, criado_em`,
       [id, quem, cat, nome, mime, buf.length, sha(buf).toString('hex'), buf.toString('base64')])).rows[0];
     const rot = { exame: 'Exame', receita: 'Receita', laudo: 'Laudo', outro: 'Arquivo' }[cat];

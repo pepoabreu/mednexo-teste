@@ -20,6 +20,14 @@ const uuid = (v, m) => { if (!UUID.test(v || '')) throw Object.assign(new Error(
 
 const ipReq = req => String(req.headers['cf-connecting-ip'] || req.headers['x-real-ip'] || req.socket.remoteAddress || '').split(',')[0].trim() || null;
 const ctxReq = (req, org, uid) => ({ org, uid, ip: ipReq(req), ua: req.headers['user-agent'], rid: crypto.randomUUID() });
+// ---- links temporários assinados para arquivos (10 min, uso único, presos ao usuário que gerou; auditados na emissão e no uso)
+const LINK_K = crypto.createHash('sha256').update('links|' + (process.env.LINK_SEGREDO || process.env.ASAAS_CRIPTO || crypto.randomBytes(32).toString('hex'))).digest();
+const linksUsados = new Map();
+const b64u = b => Buffer.from(b).toString('base64url');
+function assinaLink(dados) { const p = b64u(JSON.stringify(dados)); return p + '.' + crypto.createHmac('sha256', LINK_K).update(p).digest('base64url'); }
+function confereLink(t) { const [p, sig] = String(t || '').split('.'); if (!p || !sig) return null; const ok = crypto.createHmac('sha256', LINK_K).update(p).digest();
+  const dado = Buffer.from(sig, 'base64url'); if (dado.length !== ok.length || !crypto.timingSafeEqual(dado, ok)) return null; const d = JSON.parse(Buffer.from(p, 'base64url').toString()); return d.e > Date.now() ? d : null; }
+setInterval(() => { const a = Date.now(); for (const [k, e] of linksUsados) if (e < a) linksUsados.delete(k); }, 60e3).unref();
 async function login(req, res, b) {
   const email = need(b.email, 'e-mail obrigatório').toLowerCase(), senha = need(b.senha, 'senha obrigatória');
   const r = await pool.query(`SELECT u.id, u.nome_completo, u.senha_hash, u.ativo, u.tentativas_falhas, u.bloqueado_ate, m.organizacao_id, m.papel
@@ -77,6 +85,13 @@ const docs = require('./documentos')(pool, { need, uuid }, clin);
 const ia = require('./ia')(pool, { need, uuid }, clin);
 const hosp = require('./hospitais')(pool, { need, uuid });
 const routes = {
+  'POST /api/arquivo/link': async (s, c, q, b, ctx) => {
+    const a = (await c.query('SELECT id, paciente_id, internacao_id, nome_original FROM mednexo.arquivo WHERE id = $1', [uuid(b.id)])).rows[0];
+    if (!a) throw Object.assign(new Error('Arquivo não encontrado ou sem permissão.'), { http: 404 });
+    const exp = Date.now() + 10 * 60e3, t = assinaLink({ a: a.id, u: s.uid, o: s.org, e: exp, n: crypto.randomBytes(8).toString('hex') });
+    await c.query(`SELECT mednexo.auditar_acesso('link_temporario_emitido','arquivo',$1,$2::uuid,$3::uuid,$4::jsonb)`, [a.id, a.paciente_id, a.internacao_id, JSON.stringify({ expira_em: new Date(exp).toISOString() })]);
+    return { url: '/api/arquivo/temp?t=' + t, expira_em: new Date(exp).toISOString() };
+  },
   'GET /api/me': async (s, c) => ({ nome: s.nome, papel: s.papel, mfa_pendente: !!s.mfa_pendente, mfa_ativo: !!((await seg.mfa(s.uid)) || {}).ativado_em, emergencias_a_revisar: await seg.pendentesRevisao(s), ...(await contr.plano(c)), situacao: await asaas.situacao(s.org),
     hospitais: (await c.query('SELECT id, nome_fantasia FROM mednexo.hospital WHERE ativo ORDER BY nome_fantasia')).rows }),
   'GET /api/hospitais': async (s, c) => (await c.query(`SELECT h.id, h.nome_fantasia,
@@ -138,7 +153,7 @@ const server = http.createServer(async (req, res) => {
     if (req.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store' }); return res.end(HTML()); }
     if (req.method === 'GET' && /^\/assets\/(symbol|lockup|icon-192)\.png$/.test(url.pathname)) { const f = path.join(__dirname, 'assets', path.basename(url.pathname)); res.writeHead(200, { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=86400' }); return res.end(fs.readFileSync(f)); }
     if (req.method === 'GET' && url.pathname === '/tele') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' }); return res.end(fs.readFileSync(path.join(__dirname, 'public', 'tele.html'))); }
-    if (key === 'GET /health') { await pool.query('SELECT 1'); return send(res, 200, { ok: true, asaas: asaas.configurado() ? (asaas.estado.conectado === null ? 'verificando' : asaas.estado.conectado ? 'conectado' : 'falha') : 'desativado', webhook_asaas: asaas.estado.webhook, ...(asaas.estado.erro_webhook ? { webhook_erro: String(asaas.estado.erro_webhook).slice(0, 200) } : {}), backup: await pool.query(`SELECT status, criado_em, restauracao_ok FROM mednexo.backup_registro ORDER BY id DESC LIMIT 1`).then(r => r.rows[0] ? { ultimo: r.rows[0].criado_em, status: r.rows[0].status, restauracao_testada: r.rows[0].restauracao_ok, atrasado: Date.now() - new Date(r.rows[0].criado_em) > 26 * 3600e3 } : 'nenhum', () => 'nenhum') }); }
+    if (key === 'GET /health') { await pool.query('SELECT 1'); return send(res, 200, { ok: true, asaas: asaas.configurado() ? (asaas.estado.conectado === null ? 'verificando' : asaas.estado.conectado ? 'conectado' : 'falha') : 'desativado', webhook_asaas: asaas.estado.webhook, antivirus: await require('./antivirus').saude(), ...(asaas.estado.erro_webhook ? { webhook_erro: String(asaas.estado.erro_webhook).slice(0, 200) } : {}), backup: await pool.query(`SELECT status, criado_em, restauracao_ok FROM mednexo.backup_registro ORDER BY id DESC LIMIT 1`).then(r => r.rows[0] ? { ultimo: r.rows[0].criado_em, status: r.rows[0].status, restauracao_testada: r.rows[0].restauracao_ok, atrasado: Date.now() - new Date(r.rows[0].criado_em) > 26 * 3600e3 } : 'nenhum', () => 'nenhum') }); }
     if (req.method === 'GET' && url.pathname === '/portal') { res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer' }); return res.end(fs.readFileSync(path.join(__dirname, 'public', 'portal.html'))); }
     if (!url.pathname.startsWith('/api/')) return send(res, 404, { erro: 'não encontrado' });
     if (req.method === 'POST' && req.headers['content-type'] && !/json/.test(req.headers['content-type'])) return send(res, 415, { erro: 'use JSON' });
@@ -147,6 +162,19 @@ const server = http.createServer(async (req, res) => {
     if (await portal.publico(req, res, key, url, readBody, send)) return;
     if (key === 'POST /api/contratar') { const ip = String(req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress).split(',')[0].trim(); return send(res, 200, await contr.contratar(ip, await readBody(req))); }
     if (key === 'POST /api/cadastro') return await cadastro(req, res, await readBody(req));
+    if (key === 'GET /api/arquivo/temp') {
+      const t = url.searchParams.get('t'), d = confereLink(t);
+      if (!d) return send(res, 410, { erro: 'Link inválido ou expirado. Gere um novo link no MedNexo.' });
+      if (linksUsados.has(t)) return send(res, 410, { erro: 'Este link já foi usado. Gere um novo link no MedNexo.' });
+      const m = (await pool.query('SELECT m.papel FROM mednexo.organizacao_membro m JOIN mednexo.usuario u ON u.id = m.usuario_id WHERE m.usuario_id = $1 AND m.organizacao_id = $2 AND m.ativo AND u.ativo', [d.u, d.o])).rows[0];
+      if (!m) return send(res, 403, { erro: 'Acesso revogado.' });
+      linksUsados.set(t, d.e);
+      const ctx = ctxReq(req, d.o, d.u);
+      const a = await pool.tx(async c => { const r = (await c.query(`SELECT a.id, a.nome_original, a.mime_type, a.paciente_id, a.internacao_id, encode(k.conteudo,'base64') AS b64 FROM mednexo.arquivo a JOIN mednexo.arquivo_conteudo k ON k.arquivo_id = a.id WHERE a.id = $1`, [d.a])).rows[0];
+        if (r) await c.query(`SELECT mednexo.auditar_acesso('download_link_temporario','arquivo',$1,$2::uuid,$3::uuid,'{}'::jsonb)`, [r.id, r.paciente_id, r.internacao_id]); return r; }, ctx);
+      if (!a) return send(res, 404, { erro: 'Arquivo não encontrado ou sem permissão.' });
+      const buf = Buffer.from(a.b64, 'base64'); res.writeHead(200, { 'Content-Type': a.mime_type, 'Content-Length': buf.length, 'Content-Disposition': `inline; filename="${encodeURIComponent(a.nome_original)}"`, 'Cache-Control': 'private, no-store', 'Referrer-Policy': 'no-referrer', 'Content-Security-Policy': "sandbox; default-src 'none'; img-src data:; style-src 'unsafe-inline'" }); return res.end(buf);
+    }
     if (key === 'POST /api/login') return await login(req, res, await readBody(req));
     if (key === 'POST /api/login/2fa') { const u = await seg.segundaEtapa(await readBody(req), ctxReq(req)); return abreSessao(req, res, u, {}); }
     const tok = cookie(req).sid; const s = tok && sessions.get(tok);

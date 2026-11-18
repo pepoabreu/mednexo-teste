@@ -103,6 +103,7 @@ function alertas(s) {
       if (h.backup && h.backup.atrasado) add('critico', 'bk:' + u.url, `Backup atrasado em ${u.url}.`);
       if (h.backup && h.backup.status && h.backup.status !== 'ok') add('critico', 'bkf:' + u.url, `Último backup com falha (${h.backup.status}).`);
       if (h.backup === 'nenhum') add('atencao', 'bk0:' + u.url, `Nenhum backup registrado em ${u.url}.`);
+      if (h.antivirus === 'fora do ar') add('critico', 'av:' + u.url, 'Antivírus (ClamAV) fora do ar: envio de arquivos bloqueado.');
       if (h.asaas === 'falha') add('critico', 'asaas:' + u.url, 'Conexão com o Asaas falhando.');
       if (h.webhook_asaas === false) add('atencao', 'wh:' + u.url, 'Webhook do Asaas não registrado' + (h.webhook_erro ? `: ${h.webhook_erro}` : '.'));
     }

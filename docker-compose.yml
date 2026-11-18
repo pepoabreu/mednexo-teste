@@ -44,6 +44,8 @@ services:
       URL_PUBLICA: ${URL_PUBLICA:-}
       TAXA_PLATAFORMA: ${TAXA_PLATAFORMA:-10}
       MFA_OBRIGATORIO: ${MFA_OBRIGATORIO:-}
+      CLAMAV_HOST: clamav
+      ANTIVIRUS: ${ANTIVIRUS:-obrigatorio}
       PRECO_INDIVIDUAL: ${PRECO_INDIVIDUAL:-}
       PRECO_EQUIPE: ${PRECO_EQUIPE:-}
       PRECO_CLINICA: ${PRECO_CLINICA:-}
@@ -76,6 +78,12 @@ services:
       BACKUP_S3_REGIAO: ${BACKUP_S3_REGIAO:-auto}
     volumes:
       - backups:/backups
+  # Antivírus (ClamAV) que verifica todo arquivo enviado antes de salvar. Assinaturas atualizadas automaticamente.
+  clamav:
+    image: clamav/clamav:stable
+    restart: unless-stopped
+    volumes:
+      - clamdb:/var/lib/clamav
   # Monitor privado de tudo o que está na conta Hostinger (somente leitura). O token da Hostinger fica SÓ neste container.
   monitor:
     build:
@@ -112,3 +120,4 @@ volumes:
   dbdata:
   backups:
   monitordados:
+  clamdb:

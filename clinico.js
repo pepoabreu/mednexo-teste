@@ -45,6 +45,7 @@ module.exports = function (pool, { need, uuid }) {
     if (!buf.length) throw err('Arquivo vazio.');
     if (buf.length > MAX_ARQ) throw err('Arquivo maior que 8 MB.', 413);
     if (!TIPOS[mime](buf)) throw err(`O conteúdo de "${nome}" não corresponde ao tipo ${mime}.`, 415);
+    await require('./antivirus').verificar(buf, nome);
     const sha = crypto.createHash('sha256').update(buf).digest('hex');
     const a = (await c.query(`INSERT INTO mednexo.arquivo (organizacao_id, paciente_id, internacao_id, categoria, nome_original, mime_type, tamanho_bytes, sha256, storage_chave, criado_por)
       VALUES ($1,$2,$3,$4::mednexo.categoria_arquivo,$5,$6,$7,decode($8,'hex'),$9,$10) RETURNING id`,
