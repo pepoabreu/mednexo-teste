@@ -119,6 +119,7 @@ module.exports = function (pool, { uuid }) {
   }
 
   // =================== ROTAS DO MÉDICO (sessão + RLS) ===================
+  let A = null; // módulo Asaas (injetado pelo servidor)
   const R = {};
   const ehMedico = s => ['medico_administrador', 'medico_assistente'].includes(s.papel);
   async function minha(c, id) { const t = (await c.query(`SELECT * FROM mednexo.teleconsulta WHERE id = $1`, [uuid(id)])).rows[0]; if (!t) throw err('Teleconsulta não encontrada.', 404); return t; }
@@ -128,18 +129,36 @@ module.exports = function (pool, { uuid }) {
     if (b.internacao_id) { const it = (await c.query(`SELECT id, paciente_id FROM mednexo.internacao WHERE id = $1`, [uuid(b.internacao_id)])).rows[0]; if (!it) throw err('Internação não encontrada.', 404); pac = it.paciente_id; iid = it.id; }
     else { const p = (await c.query(`SELECT id FROM mednexo.paciente WHERE id = $1`, [uuid(b.paciente_id, 'Escolha o paciente.')])).rows[0]; if (!p) throw err('Paciente não encontrado ou sem permissão.', 404); pac = p.id; }
     const nome = (await c.query(`SELECT coalesce(nome_social, nome_completo) AS n FROM mednexo.paciente WHERE id = $1`, [pac])).rows[0].n;
+    const valor = Math.round(Number(String(b.valor ?? 0).replace(',', '.')) * 100) / 100;
+    if (!(valor >= 0)) throw err('Valor da consulta inválido.');
+    if (valor > 0) { if (!A || !A.configurado()) throw err('Cobrança online ainda não está ativa neste servidor.', 503);
+      if (!(await A.contaMedico(ctx.uid))) throw err('Ative seus recebimentos em "Meu perfil → Recebimentos" antes de cobrar consultas online.', 409);
+      if (valor < A.TAXA + 5) throw err(`O valor mínimo da consulta paga é R$ ${(A.TAXA + 5).toFixed(2).replace('.', ',')}.`); }
     const token = crypto.randomBytes(24).toString('base64url');
-    const t = (await c.query(`INSERT INTO mednexo.teleconsulta (organizacao_id, paciente_id, internacao_id, medico_usuario_id, token_sha256, expira_em) VALUES ($1,$2,$3,$4,decode($5,'hex'), now() + interval '24 hours') RETURNING id, criada_em, expira_em`,
-      [ctx.org, pac, iid, ctx.uid, sha(token).toString('hex')])).rows[0];
+    const t = (await c.query(`INSERT INTO mednexo.teleconsulta (organizacao_id, paciente_id, internacao_id, medico_usuario_id, token_sha256, expira_em, valor) VALUES ($1,$2,$3,$4,decode($5,'hex'), now() + interval '24 hours', $6) RETURNING id, criada_em, expira_em`,
+      [ctx.org, pac, iid, ctx.uid, sha(token).toString('hex'), valor])).rows[0];
     const it = { paciente_id: pac, id: iid };
     await c.query(`SELECT mednexo.auditar_acesso('tele_criar','teleconsulta',$1,$2::uuid,$3::uuid,'{}'::jsonb)`, [t.id, it.paciente_id, it.id]);
-    return { id: t.id, chave: `${t.id}.${token}`, expira_em: t.expira_em, paciente: nome };
+    return { id: t.id, chave: `${t.id}.${token}`, expira_em: t.expira_em, paciente: nome, valor };
   };
-  R['GET /api/tele/lista'] = async (s, c, q) => (await c.query(`SELECT t.id, t.status, t.criada_em, t.expira_em, t.iniciada_em, t.encerrada_em, t.consentimento_em, u.nome_completo AS medico,
+  R['GET /api/tele/lista'] = async (s, c, q) => { const l = (await c.query(`SELECT t.id, t.status, t.criada_em, t.expira_em, t.iniciada_em, t.encerrada_em, t.consentimento_em, t.valor, t.pago_em, t.reembolsado_em, t.medico_usuario_id, u.nome_completo AS medico,
       (SELECT count(*) FROM mednexo.tele_anexo a WHERE a.teleconsulta_id = t.id)::int AS anexos, (SELECT count(*) FROM mednexo.tele_mensagem m WHERE m.teleconsulta_id = t.id)::int AS mensagens
         , coalesce(p.nome_social, p.nome_completo) AS paciente, p.codigo AS paciente_codigo FROM mednexo.teleconsulta t JOIN mednexo.usuario u ON u.id = t.medico_usuario_id JOIN mednexo.paciente p ON p.id = t.paciente_id
       WHERE ($1::uuid IS NULL OR t.internacao_id = $1) ORDER BY t.criada_em DESC LIMIT 100`, [q.internacao_id ? uuid(q.internacao_id) : null])).rows;
-  R['GET /api/tele/sala'] = async (s, c, q) => { const t = await minha(c, q.id); return { tele: { id: t.id, status: t.status, consentimento_em: t.consentimento_em, expira_em: t.expira_em, internacao_id: t.internacao_id }, ...(await conteudo(c, t.id)) }; };
+    const cob = A ? await A.cobrancaTeleResumo(l.filter(x => Number(x.valor) > 0).map(x => x.id)) : {};
+    return l.map(x => ({ ...x, eu: x.medico_usuario_id === s.uid, cobranca: cob[x.id] || null })); };
+  R['GET /api/tele/sala'] = async (s, c, q) => { const t = await minha(c, q.id); return { tele: { id: t.id, status: t.status, consentimento_em: t.consentimento_em, expira_em: t.expira_em, internacao_id: t.internacao_id, valor: Number(t.valor), pago: !!t.pago_em || Number(t.valor) === 0 }, ...(await conteudo(c, t.id)) }; };
+  const doMedico = (s, t) => { if (t.medico_usuario_id !== s.uid && s.papel !== 'medico_administrador') throw err('Somente o médico da consulta (ou o gestor) pode fazer isso.', 403); };
+  R['POST /api/tele/reembolsar'] = async (s, c, q, b, ctx) => { const t = await minha(c, b.id); doMedico(s, t);
+    if (t.iniciada_em) throw err('A consulta já foi iniciada pelo médico; pela regra do MedNexo, só há reembolso quando o médico não atende.', 409);
+    const r = await A.reembolsarTele(t);
+    await c.query(`UPDATE mednexo.teleconsulta SET status = 'encerrada', encerrada_em = coalesce(encerrada_em, now()) WHERE id = $1`, [t.id]);
+    await c.query(`INSERT INTO mednexo.tele_mensagem (teleconsulta_id, autor, texto) VALUES ($1,'sistema','Consulta não realizada: pagamento estornado ao paciente.')`, [t.id]);
+    await c.query(`SELECT mednexo.auditar_acesso('tele_reembolso','teleconsulta',$1,$2::uuid,$3::uuid,'{}'::jsonb)`, [t.id, t.paciente_id, t.internacao_id]);
+    publicar(t.id, 'medico', 'estado', { status: 'encerrada' }); return r; };
+  R['POST /api/tele/nota'] = async (s, c, q, b) => { const t = await minha(c, b.id); doMedico(s, t); const n = await A.notaTele(t);
+    await c.query(`SELECT mednexo.auditar_acesso('tele_nota_fiscal','teleconsulta',$1,$2::uuid,$3::uuid,'{}'::jsonb)`, [t.id, t.paciente_id, t.internacao_id]); return n; };
+  R['GET /api/tele/nota'] = async (s, c, q) => { const t = await minha(c, q.id); return (await A.notaStatus(t)) || {}; };
   R['POST /api/tele/msg'] = async (s, c, q, b) => { const t = await minha(c, b.id); if (t.status === 'encerrada') throw err('Teleconsulta encerrada.', 409); return gravarMsg(c, t.id, 'medico', b.texto); };
   R['POST /api/tele/sinal'] = async (s, c, q, b) => { const t = await minha(c, b.id); if (t.status === 'encerrada') throw err('Teleconsulta encerrada.', 409);
     if (b.tipo === 'offer' && t.status === 'aguardando') await c.query(`UPDATE mednexo.teleconsulta SET status = 'em_andamento', iniciada_em = coalesce(iniciada_em, now()) WHERE id = $1`, [t.id]);
@@ -158,7 +177,7 @@ module.exports = function (pool, { uuid }) {
   async function autenticaPaciente(req) {
     const k = String(req.headers['x-tele-chave'] || ''); const [id, tok] = k.split('.');
     if (!id || !tok || !/^[0-9a-f-]{36}$/.test(id)) throw err('Link de teleconsulta inválido.', 401);
-    const t = (await pool.query(`SELECT t.id, t.status, t.expira_em, t.consentimento_em, u.nome_completo AS medico, p.nome_social, p.nome_completo AS paciente_nome FROM mednexo.teleconsulta t JOIN mednexo.usuario u ON u.id = t.medico_usuario_id JOIN mednexo.paciente p ON p.id = t.paciente_id WHERE t.id = $1 AND t.token_sha256 = decode($2,'hex')`, [id, sha(tok).toString('hex')])).rows[0];
+    const t = (await pool.query(`SELECT t.id, t.status, t.expira_em, t.consentimento_em, t.valor, t.pago_em, t.organizacao_id, t.paciente_id, t.medico_usuario_id, u.nome_completo AS medico, p.nome_social, p.nome_completo AS paciente_nome FROM mednexo.teleconsulta t JOIN mednexo.usuario u ON u.id = t.medico_usuario_id JOIN mednexo.paciente p ON p.id = t.paciente_id WHERE t.id = $1 AND t.token_sha256 = decode($2,'hex')`, [id, sha(tok).toString('hex')])).rows[0];
     if (!t) throw err('Link de teleconsulta inválido.', 401);
     if (t.status === 'encerrada') throw err('Esta teleconsulta foi encerrada pelo médico.', 410);
     if (new Date(t.expira_em) < new Date()) throw err('Este link expirou. Peça um novo link ao seu médico.', 410);
@@ -171,7 +190,8 @@ module.exports = function (pool, { uuid }) {
     const q = Object.fromEntries(url.searchParams);
     if (key === 'GET /api/tele-p/sala') {
       const primeiro = String(t.nome_social || t.paciente_nome || '').trim().split(/\s+/)[0] || '';
-      send(res, 200, { tele: { status: t.status, medico: t.medico, paciente_primeiro_nome: primeiro, consentimento_em: t.consentimento_em, expira_em: t.expira_em }, ...(t.consentimento_em ? await conteudo(pool, t.id) : { mensagens: [], anexos: [], seq: 0, ice: [] }) }); return true;
+      const pago = !!t.pago_em || Number(t.valor) === 0;
+      send(res, 200, { tele: { status: t.status, medico: t.medico, paciente_primeiro_nome: primeiro, consentimento_em: t.consentimento_em, expira_em: t.expira_em, valor: Number(t.valor), pago }, ...(t.consentimento_em && pago ? await conteudo(pool, t.id) : { mensagens: [], anexos: [], seq: 0, ice: [] }) }); return true;
     }
     if (key === 'POST /api/tele-p/consentir') { const b = await readBody(req); if (b.aceito !== true) throw err('É necessário aceitar o termo.');
       const ip = String(req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress).split(',')[0].trim();
@@ -179,6 +199,9 @@ module.exports = function (pool, { uuid }) {
       await pool.query(`INSERT INTO mednexo.tele_mensagem (teleconsulta_id, autor, texto) VALUES ($1,'sistema','Paciente aceitou o termo de teleconsulta.')`, [t.id]);
       publicar(t.id, 'paciente', 'estado', { consentimento: true }); send(res, 200, { ok: true }); return true; }
     exigeConsent(t);
+    if (key === 'POST /api/tele-p/pagar') { const b = await readBody(req); send(res, 200, await A.cobrarTele(t, b)); return true; }
+    if (key === 'GET /api/tele-p/pagamento') { send(res, 200, Number(t.valor) === 0 ? { pago: true } : t.pago_em ? { pago: true, status: 'RECEIVED' } : await A.statusTele(t)); return true; }
+    if (Number(t.valor) > 0 && !t.pago_em) throw err('Pagamento da consulta pendente.', 402);
     if (key === 'GET /api/tele-p/eventos') { send(res, 200, await esperar(t.id, 'paciente', Number(q.desde) || 0)); return true; }
     if (key === 'POST /api/tele-p/msg') { const b = await readBody(req); send(res, 200, await gravarMsg(pool, t.id, 'paciente', b.texto)); return true; }
     if (key === 'POST /api/tele-p/sinal') { const b = await readBody(req); send(res, 200, sinal(t.id, 'paciente', b)); return true; }
@@ -186,5 +209,5 @@ module.exports = function (pool, { uuid }) {
     if (key === 'GET /api/tele-p/anexo') { const r = await lerAnexo(pool, t.id, q.aid); res.writeHead(200, { 'Content-Type': r.__raw.mime, 'Content-Length': r.__raw.buf.length, 'Content-Disposition': `inline; filename="${encodeURIComponent(r.__raw.nome)}"`, 'Cache-Control': 'private, no-store' }); res.end(r.__raw.buf); return true; }
     send(res, 404, { erro: 'rota inexistente' }); return true;
   }
-  return { routes: R, publico, eventosMedico, migrar: () => pool.raw(MIGRACAO) };
+  return { routes: R, publico, eventosMedico, migrar: () => pool.raw(MIGRACAO), usarAsaas: a => { A = a; a.aoPagar(id => publicar(id, 'sistema', 'estado', { pago: true })); } };
 };

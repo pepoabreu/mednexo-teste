@@ -56,6 +56,9 @@ async function cadastro(req, res, b) {
 
 const contr = require('./contratacao')(pool, { need }, { hashSenha });
 const tele = require('./tele')(pool, { uuid });
+const LIVRES_BLOQUEIO = new Set(['POST /api/logout', 'POST /api/perfil/senha', 'POST /api/assinatura', 'POST /api/tele/encerrar', 'POST /api/tele/nota', 'POST /api/tele/reembolsar']);
+const asaas = require('./asaas')(pool, { need, uuid });
+tele.usarAsaas(asaas);
 const equipe = require('./equipe')(pool, { need, uuid }, { hashSenha, confereSenha, encerrarSessoes: uid => { for (const [k, v] of sessions) if (v.uid === uid) sessions.delete(k); } });
 const clin = require('./clinico')(pool, { need, uuid });
 const rep = require('./repasse')(pool, { need, uuid });
@@ -63,7 +66,7 @@ const docs = require('./documentos')(pool, { need, uuid }, clin);
 const ia = require('./ia')(pool, { need, uuid }, clin);
 const hosp = require('./hospitais')(pool, { need, uuid });
 const routes = {
-  'GET /api/me': async (s, c) => ({ nome: s.nome, papel: s.papel, ...(await contr.plano(c)),
+  'GET /api/me': async (s, c) => ({ nome: s.nome, papel: s.papel, ...(await contr.plano(c)), situacao: await asaas.situacao(s.org),
     hospitais: (await c.query('SELECT id, nome_fantasia FROM mednexo.hospital WHERE ativo ORDER BY nome_fantasia')).rows }),
   'GET /api/hospitais': async (s, c) => (await c.query(`SELECT h.id, h.nome_fantasia,
       (SELECT count(*)::int FROM mednexo.leito l WHERE l.hospital_id = h.id AND l.ativo) AS leitos,
@@ -109,7 +112,7 @@ const routes = {
     eventos: (await c.query(`SELECT a.seq, a.ocorrido_em, a.acao, a.entidade, u.nome_completo AS usuario FROM mednexo.auditoria_evento a LEFT JOIN mednexo.usuario u ON u.id = a.usuario_id ORDER BY a.seq DESC LIMIT 60`)).rows }),
 };
 
-Object.assign(routes, clin.routes, rep.routes, hosp.routes, docs.routes, ia.routes, tele.routes, equipe.routes);
+Object.assign(routes, clin.routes, rep.routes, hosp.routes, docs.routes, ia.routes, tele.routes, equipe.routes, asaas.routes);
 
 const server = http.createServer(async (req, res) => {
   const url = new URL(req.url, 'http://x'); const key = `${req.method} ${url.pathname}`;
@@ -121,6 +124,7 @@ const server = http.createServer(async (req, res) => {
     if (key === 'GET /health') { await pool.query('SELECT 1'); return send(res, 200, { ok: true }); }
     if (!url.pathname.startsWith('/api/')) return send(res, 404, { erro: 'não encontrado' });
     if (req.method === 'POST' && req.headers['content-type'] && !/json/.test(req.headers['content-type'])) return send(res, 415, { erro: 'use JSON' });
+    if (key === 'POST /api/asaas/webhook') return asaas.webhook(req, res, readBody, send);
     if (await tele.publico(req, res, key, url, readBody, send)) return;
     if (key === 'POST /api/contratar') { const ip = String(req.headers['cf-connecting-ip'] || req.headers['x-forwarded-for'] || req.socket.remoteAddress).split(',')[0].trim(); return send(res, 200, await contr.contratar(ip, await readBody(req))); }
     if (key === 'POST /api/cadastro') return await cadastro(req, res, await readBody(req));
@@ -129,6 +133,8 @@ const server = http.createServer(async (req, res) => {
     if (!s || s.exp < Date.now()) { if (tok) sessions.delete(tok); return send(res, 401, { erro: 'sessão expirada' }); }
     if (key === 'POST /api/logout') { sessions.delete(tok); return send(res, 200, { ok: true }, { 'Set-Cookie': 'sid=; Max-Age=0; Path=/' }); }
     if (key === 'GET /api/tele/eventos') return send(res, 200, await tele.eventosMedico({ org: s.org, uid: s.uid, ip: req.socket.remoteAddress, ua: req.headers['user-agent'], rid: crypto.randomUUID() }, Object.fromEntries(url.searchParams)));
+    if (req.method === 'POST' && !LIVRES_BLOQUEIO.has(key) && (await asaas.situacao(s.org)).bloqueada)
+      return send(res, 402, { erro: 'Conta em modo somente leitura: a assinatura do MedNexo está pendente. Você pode consultar e exportar os prontuários; para voltar a registrar, regularize a assinatura (Equipe → Assinatura).' });
     const h = routes[key]; if (!h) return send(res, 404, { erro: 'rota inexistente' });
     const body = req.method === 'POST' ? await readBody(req, 14e6) : {};
     const ctx = { org: s.org, uid: s.uid, ip: req.socket.remoteAddress, ua: req.headers['user-agent'], rid: crypto.randomUUID() };
@@ -148,10 +154,11 @@ const server = http.createServer(async (req, res) => {
   if (!tem) { console.log('Aplicando schema MEDNEXO...'); await pool.raw(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8')); console.log('Schema aplicado.'); }
   await clin.migrar();
   await rep.migrar();
-  await hosp.migrar(); await ia.migrar(); await contr.migrar(); await tele.migrar(); await equipe.migrar();
+  await hosp.migrar(); await ia.migrar(); await contr.migrar(); await tele.migrar(); await equipe.migrar(); await asaas.migrar();
   await seed(pool, process.env);
   await adminExtra(pool, process.env).catch(e => console.error('admin extra:', e.message));
   await gestor(pool, process.env).catch(e => console.error('gestor:', e.message));
   await require('./demo')(pool, routes, process.env).catch(e => console.error('demo:', e.message));
   server.listen(PORT, '0.0.0.0', () => console.log('MEDNEXO ouvindo em', PORT));
+  asaas.iniciar().catch(e => console.error('asaas:', e.message));
 })().catch(e => { console.error(e); process.exit(1); });

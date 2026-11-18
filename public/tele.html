@@ -71,6 +71,7 @@ async function inicio(){
  try{S=await req(API.sala)}catch(e){$('#app').innerHTML=`<div class="card termo"><h1>Não foi possível abrir a teleconsulta</h1><p>${esc(e.message)}</p>${e.status===401&&MEDICO?'<p><a href="/sistema/">Entre no MedNexo</a> e abra a sala de novo.</p>':''}</div>`;estado('indisponível','off');return}
  if(!MEDICO&&!S.tele.consentimento_em)return termo();
  if(S.tele.status==='encerrada')return encerrada();
+ if(!MEDICO&&S.tele.valor>0&&!S.tele.pago)return pagamento();
  entrada();
 }
 function termo(){estado('aguardando aceite');
@@ -85,7 +86,22 @@ function termo(){estado('aguardando aceite');
  <label class="ck"><input type="checkbox" id="ac"><span>Li e concordo com a realização da teleconsulta.</span></label><div id="tm"></div>
  <button class="p" onclick="aceitar()">Concordo e quero entrar</button></div>`}
 async function aceitar(){if(!$('#ac').checked){$('#tm').innerHTML='<div class="err">Marque a caixa para concordar com o termo.</div>';return}
- try{await req(API.consentir,{aceito:true});S=await req(API.sala);entrada()}catch(e){$('#tm').innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+ try{await req(API.consentir,{aceito:true});S=await req(API.sala);if(S.tele.valor>0&&!S.tele.pago)return pagamento();entrada()}catch(e){$('#tm').innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+const moeda=v=>Number(v).toLocaleString('pt-BR',{style:'currency',currency:'BRL'});
+function pagamento(){estado('pagamento pendente');
+ $('#app').innerHTML=`<div class="card termo"><h1>Pagamento da consulta</h1><p>Consulta online com <b>${esc(S.tele.medico)}</b>: <b>${moeda(S.tele.valor)}</b>.</p>
+ <p class="mut">O pagamento é processado pelo Asaas. Assim que ele for confirmado, a sala abre automaticamente.</p><div id="pgm"></div>
+ <div id="pgf"><label for="pg_n">Nome de quem paga</label><input id="pg_n" style="width:100%;min-height:44px;border:1px solid var(--br);border-radius:10px;padding:0 12px;font:inherit;background:var(--bg);color:var(--tx)">
+ <label for="pg_c" style="display:block;margin-top:10px">CPF de quem paga</label><input id="pg_c" inputmode="numeric" autocomplete="off" style="width:100%;min-height:44px;border:1px solid var(--br);border-radius:10px;padding:0 12px;font:inherit;background:var(--bg);color:var(--tx)">
+ <p class="mut" style="font-size:13px">O CPF é exigido para emitir a cobrança e a nota fiscal.</p><button class="p" onclick="gerarPg()">Gerar Pix</button></div><div id="pgx"></div></div>`;
+ req(API.sala.replace('/sala','/pagamento')).then(r=>{if(r.status)gerarPg(true)}).catch(()=>{})}
+async function gerarPg(existente){try{const r=await req('/api/tele-p/pagar',existente?{}:{nome:$('#pg_n').value,cpf:$('#pg_c').value});if(r.pago)return liberado();
+ $('#pgf').style.display='none';$('#pgx').innerHTML=`${r.pix?`<h2 style="margin-top:14px">Pague com Pix</h2><img alt="QR Code Pix" src="data:image/png;base64,${r.pix.imagem}" style="width:220px;max-width:100%;display:block;margin:8px auto;background:#fff;padding:8px;border-radius:12px">
+ <label for="pg_cc">Pix copia e cola</label><div style="display:flex;gap:8px"><input id="pg_cc" readonly value="${esc(r.pix.copia_cola)}" style="flex:1;min-width:0;min-height:44px;border:1px solid var(--br);border-radius:10px;padding:0 10px;font:inherit;background:var(--bg);color:var(--tx)"><button onclick="navigator.clipboard.writeText($('#pg_cc').value);this.textContent='Copiado'">Copiar</button></div>`:''}
+ ${r.link?`<p style="margin-top:14px"><a href="${esc(r.link)}" target="_blank" rel="noopener"><b>Pagar com cartão ou ver outras formas</b></a></p>`:''}<p class="mut" id="pgst">Aguardando a confirmação do pagamento…</p>`;acompanha()}
+ catch(e){$('#pgm').innerHTML=`<div class="err">${esc(e.message)}</div>`}}
+let _pgT=null;function acompanha(){clearTimeout(_pgT);_pgT=setTimeout(async()=>{try{const r=await req('/api/tele-p/pagamento');if(r.pago)return liberado()}catch(e){if(e.status===410)return encerrada()}acompanha()},5000)}
+async function liberado(){clearTimeout(_pgT);S=await req(API.sala);$('#app').innerHTML='<div class="card termo"><div class="okm">✅ Pagamento confirmado. Obrigado!</div></div>';setTimeout(entrada,1200)}
 function entrada(){estado('pronto para entrar');
  $('#app').innerHTML=`<div class="card termo"><h1>${MEDICO?'Sala de teleconsulta':'Tudo pronto'}</h1><p>Ao entrar, o navegador vai pedir permissão para usar a <b>câmera</b> e o <b>microfone</b>. Toque em <b>Permitir</b>.</p>
  <p class="mut">Se preferir, dá para entrar só com o chat e enviar exames, receitas e laudos.</p><div id="em"></div>
@@ -133,7 +149,7 @@ async function oferta(){ultOferta=Date.now();OID=String(ultOferta)+Math.random()
 async function trata(ev){
  if(ev.tipo==='msg')return mostraMsg(ev.dados);
  if(ev.tipo==='anexo'){anexosById[ev.dados.id]=ev.dados;return}
- if(ev.tipo==='estado'){if(ev.dados.status==='encerrada')return encerrada();if(ev.dados.consentimento&&MEDICO)estado('paciente aceitou o termo');return}
+ if(ev.tipo==='estado'){if(ev.dados.status==='encerrada')return encerrada();if(ev.dados.consentimento&&MEDICO)estado('paciente aceitou o termo');if(ev.dados.pago&&MEDICO){estado('pagamento confirmado','on');mostraMsg({id:'pg'+Date.now(),autor:'sistema',texto:'Pagamento da consulta confirmado.',criado_em:new Date()})}return}
  if(ev.tipo!=='sinal')return;const {tipo,dados}=ev.dados;
  if(tipo==='pronto'){if(MEDICO){if(pc&&['new','connecting','connected'].includes(pc.connectionState)&&Date.now()-ultOferta<6000)return;await oferta()}else sinal('pronto');return}
  if(tipo==='offer'&&!MEDICO){OID=dados.oid;const guard=pend.filter(x=>x.oid===OID);novaConexao();pend=guard;await pc.setRemoteDescription(dados.sdp);for(const c of pend)await pc.addIceCandidate(c.c).catch(()=>{});pend=[];const a=await pc.createAnswer();await pc.setLocalDescription(a);sinal('answer',{sdp:pc.localDescription.toJSON(),oid:OID});return}
