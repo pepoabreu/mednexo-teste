@@ -124,6 +124,8 @@ const routes = {
 };
 
 Object.assign(routes, clin.routes, rep.routes, hosp.routes, docs.routes, ia.routes, tele.routes, equipe.routes, asaas.routes);
+const plat = require('./plataforma')(pool); asaas.usarPlanos(plat);
+for (const [k, r] of [['POST /api/equipe/membro', 'medicos'], ['POST /api/hospitais', 'hospitais']]) { const h = routes[k]; routes[k] = async (s, ...a) => { await plat.confereLimite(s.org, r); return h(s, ...a); }; }
 const seg = require('./seguranca')(pool, { need, uuid, cifra: asaas.cifra, decifra: asaas.decifra, confereSenha, sessions });
 Object.assign(routes, seg.routes);
 const portal = require('./portal')(pool, { need, uuid, routes, asaas, hashSenha, confereSenha });
@@ -173,7 +175,7 @@ const server = http.createServer(async (req, res) => {
   if (!tem) { console.log('Aplicando schema MEDNEXO...'); await pool.raw(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8')); console.log('Schema aplicado.'); }
   await clin.migrar();
   await rep.migrar();
-  await hosp.migrar(); await ia.migrar(); await contr.migrar(); await tele.migrar(); await equipe.migrar(); await asaas.migrar(); await portal.migrar(); await seg.migrar();
+  await hosp.migrar(); await ia.migrar(); await contr.migrar(); await tele.migrar(); await equipe.migrar(); await asaas.migrar(); await portal.migrar(); await seg.migrar(); await plat.migrar();
   await seed(pool, process.env);
   await adminExtra(pool, process.env).catch(e => console.error('admin extra:', e.message));
   await gestor(pool, process.env).catch(e => console.error('gestor:', e.message));

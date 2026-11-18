@@ -84,6 +84,10 @@ services:
     restart: unless-stopped
     environment:
       HOSTINGER_API_TOKEN: ${HOSTINGER_API_TOKEN:-}
+      PGHOST: db
+      PGUSER: mednexo_plataforma
+      PGDATABASE: mednexo
+      TAXA_PLATAFORMA: ${TAXA_PLATAFORMA:-10}
       MONITOR_SENHA_HASH: ${MONITOR_SENHA_HASH:-}
       MONITOR_TOTP: ${MONITOR_TOTP:-}
       MONITOR_URLS: ${MONITOR_URLS:-}

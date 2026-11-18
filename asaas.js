@@ -59,7 +59,9 @@ module.exports = function (pool, { need, uuid }, env = process.env) {
   const CHAVE = String(env.ASAAS_API_KEY || '').trim().replace(/^'(.*)'$/, '$1').replace(/^"(.*)"$/, '$1'); // tolera aspas usadas para proteger o '$' da chave no .env
   const TAXA = Number(env.TAXA_PLATAFORMA || 10);
   const URL_PUB = (env.URL_PUBLICA || '').replace(/\/$/, '');
-  const precoPlano = p => { const v = Number(env['PRECO_' + p.toUpperCase()] || 0); return v > 0 ? v : null; };
+  let PLAT = null; // planos vindos do painel da plataforma (tabela mednexo.plano); sem ele, usa PRECO_* do ambiente
+  const precoPlano = p => { if (PLAT) return PLAT.preco(p); const v = Number(env['PRECO_' + p.toUpperCase()] || 0); return v > 0 ? v : null; };
+  const nomesPlanos = () => PLAT ? Object.fromEntries(PLAT.lista().map(p => [p.id, p.nome])) : PLANOS;
   const configurado = () => !!CHAVE;
   const hoje = () => new Date(Date.now() - 3 * 3600e3).toISOString().slice(0, 10); // data de Brasília
   const so = v => String(v || '').replace(/\D/g, '');
@@ -104,11 +106,12 @@ module.exports = function (pool, { need, uuid }, env = process.env) {
   const cache = new Map();
   async function situacao(org) {
     const c = cache.get(org); if (c && Date.now() - c.t < 60000) return c.v;
-    const o = (await pool.query(`SELECT plano, teste_ate, asaas_subscription_id, assinatura_status FROM mednexo.organizacao WHERE id = $1`, [org])).rows[0] || {};
+    const o = (await pool.query(`SELECT plano, teste_ate, asaas_subscription_id, assinatura_status, suspensa_em, suspensao_motivo FROM mednexo.organizacao WHERE id = $1`, [org])).rows[0] || {};
     let v = { bloqueada: false, motivo: null };
     const atraso = (await pool.query(`SELECT min(vencimento) AS v FROM mednexo.cobranca WHERE organizacao_id = $1 AND tipo = 'assinatura' AND status = 'OVERDUE'`, [org])).rows[0].v;
     if (atraso && (Date.now() - new Date(atraso).getTime()) / 864e5 > 5) v = { bloqueada: true, motivo: 'inadimplente', desde: atraso };
     else if (o.plano === 'teste' && o.teste_ate && new Date(o.teste_ate).getTime() + 864e5 < Date.now()) v = { bloqueada: true, motivo: 'teste_vencido' };
+    if (o.suspensa_em) v = { bloqueada: true, motivo: 'suspensa', desde: o.suspensa_em };
     cache.set(org, { t: Date.now(), v }); return v;
   }
   const invalida = org => org ? cache.delete(org) : cache.clear();
@@ -172,17 +175,17 @@ module.exports = function (pool, { need, uuid }, env = process.env) {
     'GET /api/assinatura': async (s) => { gestor(s);
       const o = (await pool.query(`SELECT nome, plano, teste_ate, assinatura_plano, assinatura_valor, assinatura_status, asaas_subscription_id FROM mednexo.organizacao WHERE id = $1`, [s.org])).rows[0];
       const cob = (await pool.query(`SELECT valor, status, vencimento, pago_em, invoice_url FROM mednexo.cobranca WHERE organizacao_id = $1 AND tipo = 'assinatura' AND status <> 'DELETED' ORDER BY vencimento DESC NULLS LAST, criado_em DESC LIMIT 24`, [s.org])).rows;
-      return { configurado: configurado(), organizacao: o, situacao: await situacao(s.org), planos: Object.entries(PLANOS).map(([k, n]) => ({ id: k, nome: n, valor: precoPlano(k) })), cobrancas: cob };
+      return { configurado: configurado(), organizacao: o, situacao: await situacao(s.org), planos: PLAT ? PLAT.lista() : Object.entries(PLANOS).map(([k, n]) => ({ id: k, nome: n, valor: precoPlano(k) })), cobrancas: cob };
     },
     'POST /api/assinatura': async (s, c, q, b) => { gestor(s);
-      const plano = PLANOS[b.plano] ? b.plano : null; if (!plano) throw err('Escolha o plano.'); const valor = precoPlano(plano); if (!valor) throw err('O valor deste plano ainda não foi definido.', 409);
+      const plano = nomesPlanos()[b.plano] ? b.plano : null; if (!plano) throw err('Escolha o plano.'); const valor = precoPlano(plano); if (!valor) throw err('O valor deste plano ainda não foi definido.', 409);
       const doc = so(b.cpf_cnpj); if (![11, 14].includes(doc.length)) throw err('Informe um CPF (11 dígitos) ou CNPJ (14 dígitos) válido.');
       const nome = need(b.nome, 'Informe o nome ou razão social do pagador.').slice(0, 120);
       const o = (await pool.query(`SELECT asaas_customer_id, asaas_subscription_id, assinatura_status FROM mednexo.organizacao WHERE id = $1`, [s.org])).rows[0];
       if (o.asaas_subscription_id && o.assinatura_status !== 'cancelada') throw err('A organização já tem uma assinatura. Para trocar de plano, fale com o suporte.', 409);
       let cus = o.asaas_customer_id;
       if (!cus) cus = (await api(CHAVE, 'POST', '/customers', { name: nome, cpfCnpj: doc, email: String(b.email || '').trim() || undefined, mobilePhone: so(b.telefone) || undefined, externalReference: 'org:' + s.org, notificationDisabled: false })).id;
-      const sub = await api(CHAVE, 'POST', '/subscriptions', { customer: cus, billingType: 'UNDEFINED', value: valor, nextDueDate: hoje(), cycle: 'MONTHLY', description: `MedNexo · plano ${PLANOS[plano]}`, externalReference: 'org:' + s.org });
+      const sub = await api(CHAVE, 'POST', '/subscriptions', { customer: cus, billingType: 'UNDEFINED', value: valor, nextDueDate: hoje(), cycle: 'MONTHLY', description: `MedNexo · plano ${nomesPlanos()[plano]}`, externalReference: 'org:' + s.org });
       await pool.query(`UPDATE mednexo.organizacao SET asaas_customer_id = $2, asaas_subscription_id = $3, assinatura_plano = $4, assinatura_valor = $5, assinatura_status = 'aguardando_pagamento' WHERE id = $1`, [s.org, cus, sub.id, plano, valor]);
       const ps = await api(CHAVE, 'GET', `/subscriptions/${sub.id}/payments`).catch(() => ({ data: [] }));
       let link = null; for (const p of ps.data || []) { const r = await gravaPagamento(p, { org: s.org, tipo: 'assinatura' }); link = link || r.invoice_url; }
@@ -290,5 +293,5 @@ module.exports = function (pool, { need, uuid }, env = process.env) {
     return Object.fromEntries(r.map(x => [x.teleconsulta_id, x]));
   }
   return { routes: R, webhook, situacao, invalida, iniciar, migrar: () => pool.raw(MIGRACAO), cobrarTele, statusTele, reembolsarTele, notaTele, notaStatus, cobrancaTeleResumo, contaMedico, TAXA, PAGO,
-    aoPagar: f => { ouvintesPago.push(f); }, configurado, cifra, decifra, cancelarCobrancaTele, estado };
+    aoPagar: f => { ouvintesPago.push(f); }, usarPlanos: p => { PLAT = p; }, configurado, cifra, decifra, cancelarCobrancaTele, estado };
 };

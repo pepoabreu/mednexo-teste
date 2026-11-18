@@ -3,10 +3,17 @@
 // servidores VPS (estado, CPU, memória, disco, rede), projetos Docker e containers, backups, domínios, assinaturas e sites;
 // e verifica de fora se os endereços públicos respondem. Nunca chama operações de escrita na Hostinger.
 const http = require('http'), fs = require('fs'), path = require('path'), crypto = require('crypto');
+const { Pool } = (() => { try { return require('./pgmini'); } catch { return require('../pgmini'); } })();
 const E = process.env, PORT = +E.PORT || 8090, API = E.HOSTINGER_API_BASE || 'https://developers.hostinger.com', TOKEN = E.HOSTINGER_API_TOKEN || '';
 const DADOS = E.MONITOR_DADOS || '/dados'; try { fs.mkdirSync(DADOS, { recursive: true }); } catch {}
 const URLS = (E.MONITOR_URLS || 'https://mednexo.iavtech.com.br/|https://mednexo.iavtech.com.br/sistema/|https://mednexo.iavtech.com.br/portal|https://mednexo.iavtech.com.br/health').split('|').map(s => s.trim()).filter(Boolean);
 const INTERVALO = Math.max(60, +E.MONITOR_INTERVALO_S || 300) * 1000;
+
+// ---------------- banco do MedNexo, com o papel mednexo_plataforma (só executa as funções do esquema "plataforma": sem acesso a prontuários)
+const db = new Pool({ host: E.PGHOST || 'db', port: +E.PGPORT || 5432, user: E.PGUSER || 'mednexo_plataforma', database: E.PGDATABASE || 'mednexo', ...(E.PGSOCKET ? { path: E.PGSOCKET } : {}) }, 2);
+const fj = async (sql, p) => { const v = Object.values((await db.query(sql, p)).rows[0] || {})[0]; return typeof v === 'string' ? JSON.parse(v) : v; };
+const UUIDRE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const AUTOR = 'dono da plataforma (painel)';
 
 // ---------------- autenticação: senha + código do autenticador (TOTP), sessão curta, bloqueio por tentativas
 const B32 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ234567';
@@ -131,6 +138,20 @@ http.createServer(async (req, res) => {
     if (!logado(req)) return send(res, 401, { erro: 'Entre para continuar.' });
     if (k === 'POST /sair') { sessoes.delete(cookie(req).mon); return send(res, 200, { ok: true }, { 'Set-Cookie': 'mon=; Max-Age=0; Path=/monitor/' }); }
     if (k === 'GET /estado') return send(res, 200, { ...estado, historico_urls: historico.urls, historico_alertas: historico.alertas.slice(0, 50), intervalo_s: INTERVALO / 1000 });
+    if (k === 'GET /plataforma') {
+      const [clientes, indicadores, cobrancas, planos, registro] = await Promise.all([fj('SELECT plataforma.clientes()'), fj('SELECT plataforma.indicadores($1)', [+E.TAXA_PLATAFORMA || 10]), fj('SELECT plataforma.cobrancas(100)'), fj('SELECT plataforma.planos()'), fj('SELECT plataforma.registro(50)')]);
+      return send(res, 200, { clientes, indicadores, cobrancas, planos, registro });
+    }
+    if (k.startsWith('POST /plataforma/')) { const b = await body(req); const org = b.org && UUIDRE.test(b.org) ? b.org : null;
+      try {
+        if (k === 'POST /plataforma/plano') { const n = v => v === '' || v == null ? null : +v; await db.query('SELECT plataforma.salvar_plano($1,$2,$3,$4,$5,$6,$7)', [String(b.id || ''), String(b.nome || '').slice(0, 60), n(b.preco), n(b.limite_medicos), n(b.limite_hospitais), b.ativo !== false, AUTOR]); }
+        else if (k === 'POST /plataforma/teste') await db.query('SELECT plataforma.estender_teste($1,$2,$3)', [org, +b.dias || 0, AUTOR]);
+        else if (k === 'POST /plataforma/suspender') await db.query('SELECT plataforma.suspender($1,$2,$3)', [org, String(b.motivo || '').slice(0, 300), AUTOR]);
+        else if (k === 'POST /plataforma/reativar') await db.query('SELECT plataforma.reativar($1,$2)', [org, AUTOR]);
+        else return send(res, 404, { erro: 'ação inexistente' });
+      } catch (e) { return send(res, 422, { erro: String(e.message).replace(/^ERROR:\s*/, '') }); }
+      return send(res, 200, { ok: true });
+    }
     if (k === 'POST /atualizar') { if (!estado.coletado_em || Date.now() - new Date(estado.coletado_em) > 30000) await coletar(); return send(res, 200, { ok: true }); }
     send(res, 404, { erro: 'não encontrado' });
   } catch (e) { console.error(e); send(res, 500, { erro: 'erro interno' }); }
