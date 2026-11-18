@@ -56,6 +56,25 @@ services:
       - "8085:80"
   # Tunel nomeado da Cloudflare (endereco fixo com HTTPS). O token vem do ambiente do servidor, nunca do repositorio.
   # Rotas publicas (painel da Cloudflare): mednexo.iavtech.com.br -> http://web:80 ; app.mednexo.iavtech.com.br -> http://app:8080
+  # Backup diário cifrado (AES-256) com teste automático de restauração; cópia externa opcional (S3/Cloudflare R2).
+  backup:
+    build:
+      context: https://github.com/pepoabreu/mednexo-teste.git#main
+      dockerfile: backup/Dockerfile
+    restart: unless-stopped
+    depends_on: [db]
+    environment:
+      PGHOST: db
+      PGUSER: postgres
+      PGDATABASE: mednexo
+      BACKUP_SENHA: ${BACKUP_SENHA:-}
+      BACKUP_DIAS: ${BACKUP_DIAS:-30}
+      BACKUP_S3_URL: ${BACKUP_S3_URL:-}
+      BACKUP_S3_CHAVE: ${BACKUP_S3_CHAVE:-}
+      BACKUP_S3_SEGREDO: ${BACKUP_S3_SEGREDO:-}
+      BACKUP_S3_REGIAO: ${BACKUP_S3_REGIAO:-auto}
+    volumes:
+      - backups:/backups
   tunel:
     image: cloudflare/cloudflared:latest
     restart: unless-stopped
@@ -71,3 +90,4 @@ services:
     command: ["-n", "--log-file=stdout", "--listening-port=3478", "--min-port=49160", "--max-port=49200", "--use-auth-secret", "--static-auth-secret=${TURN_SECRET:?defina TURN_SECRET}", "--realm=mednexo.iavtech.com.br", "--external-ip=${TURN_HOST:?defina TURN_HOST}", "--fingerprint", "--no-cli", "--no-tls", "--no-dtls", "--no-multicast-peers", "--denied-peer-ip=10.0.0.0-10.255.255.255", "--denied-peer-ip=172.16.0.0-172.31.255.255", "--denied-peer-ip=192.168.0.0-192.168.255.255", "--denied-peer-ip=127.0.0.0-127.255.255.255", "--denied-peer-ip=0.0.0.0-0.255.255.255"]
 volumes:
   dbdata:
+  backups:
