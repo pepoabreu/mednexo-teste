@@ -92,7 +92,7 @@ const routes = {
     await c.query(`SELECT mednexo.auditar_acesso('link_temporario_emitido','arquivo',$1,$2::uuid,$3::uuid,$4::jsonb)`, [a.id, a.paciente_id, a.internacao_id, JSON.stringify({ expira_em: new Date(exp).toISOString() })]);
     return { url: '/api/arquivo/temp?t=' + t, expira_em: new Date(exp).toISOString() };
   },
-  'GET /api/me': async (s, c) => ({ nome: s.nome, papel: s.papel, mfa_pendente: !!s.mfa_pendente, mfa_ativo: !!((await seg.mfa(s.uid)) || {}).ativado_em, emergencias_a_revisar: await seg.pendentesRevisao(s), ...(await contr.plano(c)), situacao: await asaas.situacao(s.org),
+  'GET /api/me': async (s, c) => ({ nome: s.nome, papel: s.papel, mfa_pendente: !!s.mfa_pendente, mfa_ativo: !!((await seg.mfa(s.uid)) || {}).ativado_em, emergencias_a_revisar: await seg.pendentesRevisao(s), lgpd_pendentes: await lgpd.pendentes(s), ...(await contr.plano(c)), situacao: await asaas.situacao(s.org),
     hospitais: (await c.query('SELECT id, nome_fantasia FROM mednexo.hospital WHERE ativo ORDER BY nome_fantasia')).rows }),
   'GET /api/hospitais': async (s, c) => (await c.query(`SELECT h.id, h.nome_fantasia,
       (SELECT count(*)::int FROM mednexo.leito l WHERE l.hospital_id = h.id AND l.ativo) AS leitos,
@@ -143,7 +143,8 @@ const plat = require('./plataforma')(pool); asaas.usarPlanos(plat);
 for (const [k, r] of [['POST /api/equipe/membro', 'medicos'], ['POST /api/hospitais', 'hospitais']]) { const h = routes[k]; routes[k] = async (s, ...a) => { await plat.confereLimite(s.org, r); return h(s, ...a); }; }
 const seg = require('./seguranca')(pool, { need, uuid, cifra: asaas.cifra, decifra: asaas.decifra, confereSenha, sessions });
 Object.assign(routes, seg.routes);
-const portal = require('./portal')(pool, { need, uuid, routes, asaas, hashSenha, confereSenha });
+const lgpd = require('./lgpd')(pool, { uuid }); Object.assign(routes, lgpd.routes);
+const portal = require('./portal')(pool, { need, uuid, routes, asaas, hashSenha, confereSenha, lgpd });
 Object.assign(routes, portal.routes);
 
 const server = http.createServer(async (req, res) => {
@@ -203,7 +204,7 @@ const server = http.createServer(async (req, res) => {
   if (!tem) { console.log('Aplicando schema MEDNEXO...'); await pool.raw(fs.readFileSync(path.join(__dirname, 'schema.sql'), 'utf8')); console.log('Schema aplicado.'); }
   await clin.migrar();
   await rep.migrar();
-  await hosp.migrar(); await ia.migrar(); await contr.migrar(); await tele.migrar(); await equipe.migrar(); await asaas.migrar(); await portal.migrar(); await seg.migrar(); await plat.migrar();
+  await hosp.migrar(); await ia.migrar(); await contr.migrar(); await tele.migrar(); await equipe.migrar(); await asaas.migrar(); await portal.migrar(); await seg.migrar(); await plat.migrar(); await lgpd.migrar();
   await seed(pool, process.env);
   await adminExtra(pool, process.env).catch(e => console.error('admin extra:', e.message));
   await gestor(pool, process.env).catch(e => console.error('gestor:', e.message));

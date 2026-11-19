@@ -140,14 +140,19 @@ http.createServer(async (req, res) => {
     if (k === 'POST /sair') { sessoes.delete(cookie(req).mon); return send(res, 200, { ok: true }, { 'Set-Cookie': 'mon=; Max-Age=0; Path=/monitor/' }); }
     if (k === 'GET /estado') return send(res, 200, { ...estado, historico_urls: historico.urls, historico_alertas: historico.alertas.slice(0, 50), intervalo_s: INTERVALO / 1000 });
     if (k === 'GET /plataforma') {
-      const [clientes, indicadores, cobrancas, planos, registro] = await Promise.all([fj('SELECT plataforma.clientes()'), fj('SELECT plataforma.indicadores($1)', [+E.TAXA_PLATAFORMA || 10]), fj('SELECT plataforma.cobrancas(100)'), fj('SELECT plataforma.planos()'), fj('SELECT plataforma.registro(50)')]);
-      return send(res, 200, { clientes, indicadores, cobrancas, planos, registro });
+      const [clientes, indicadores, cobrancas, planos, registro, lgpd] = await Promise.all([fj('SELECT plataforma.clientes()'), fj('SELECT plataforma.indicadores($1)', [+E.TAXA_PLATAFORMA || 10]), fj('SELECT plataforma.cobrancas(100)'), fj('SELECT plataforma.planos()'), fj('SELECT plataforma.registro(50)'), fj('SELECT plataforma.lgpd()').catch(() => ({}))]);
+      return send(res, 200, { clientes, indicadores, cobrancas, planos, registro, lgpd });
     }
     if (k.startsWith('POST /plataforma/')) { const b = await body(req); const org = b.org && UUIDRE.test(b.org) ? b.org : null;
       try {
         if (k === 'POST /plataforma/plano') { const n = v => v === '' || v == null ? null : +v; await db.query('SELECT plataforma.salvar_plano($1,$2,$3,$4,$5,$6,$7)', [String(b.id || ''), String(b.nome || '').slice(0, 60), n(b.preco), n(b.limite_medicos), n(b.limite_hospitais), b.ativo !== false, AUTOR]); }
         else if (k === 'POST /plataforma/teste') await db.query('SELECT plataforma.estender_teste($1,$2,$3)', [org, +b.dias || 0, AUTOR]);
         else if (k === 'POST /plataforma/suspender') await db.query('SELECT plataforma.suspender($1,$2,$3)', [org, String(b.motivo || '').slice(0, 300), AUTOR]);
+        else if (k === 'POST /plataforma/lgpd-responder') await db.query('SELECT plataforma.lgpd_responder($1,$2,$3,$4)', [UUIDRE.test(b.id) ? b.id : null, String(b.status || ''), String(b.resposta || '').slice(0, 5000), AUTOR]);
+        else if (k === 'POST /plataforma/incidente') { const t = String(b.titulo || '').trim(), d = String(b.descricao || '').trim(); if (!t || !d) throw new Error('Informe título e descrição.');
+          const cls = ['baixo', 'medio', 'alto', 'critico'].includes(b.classificacao) ? b.classificacao : 'medio', ini = b.conhecimento_em ? new Date(b.conhecimento_em) : new Date();
+          const p = new Date(ini); let n = 0; while (n < 3) { p.setDate(p.getDate() + 1); if (p.getDay() % 6) n++; }
+          await db.query('SELECT plataforma.lgpd_incidente($1,$2,$3,$4,$5,$6)', [t.slice(0, 200), d.slice(0, 5000), ini.toISOString(), cls, p.toISOString().slice(0, 10), AUTOR]); }
         else if (k === 'POST /plataforma/reativar') await db.query('SELECT plataforma.reativar($1,$2)', [org, AUTOR]);
         else return send(res, 404, { erro: 'ação inexistente' });
       } catch (e) { return send(res, 422, { erro: String(e.message).replace(/^ERROR:\s*/, '') }); }

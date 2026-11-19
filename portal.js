@@ -37,7 +37,7 @@ const DIAS = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sáb
 function cpfValido(c) { c = String(c || '').replace(/\D/g, ''); if (c.length !== 11 || /^(\d)\1+$/.test(c)) return false;
   for (const n of [9, 10]) { let s = 0; for (let i = 0; i < n; i++) s += +c[i] * (n + 1 - i); const d = (s * 10) % 11 % 10; if (d !== +c[n]) return false; } return true; }
 
-module.exports = function (pool, { need, uuid, routes, asaas, hashSenha, confereSenha }) {
+module.exports = function (pool, { need, uuid, routes, asaas, hashSenha, confereSenha, lgpd }) {
   const err = (m, http = 422) => Object.assign(new Error(m), { http });
   const sessoes = new Map(); // token -> { id, exp }
   const tentativas = new Map();
@@ -144,6 +144,9 @@ module.exports = function (pool, { need, uuid, routes, asaas, hashSenha, confere
     if (key === 'POST /api/portal/sair') { const t = cookie(req).psid; if (t) sessoes.delete(t); send(res, 200, { ok: true }, { 'Set-Cookie': 'psid=; Max-Age=0; Path=/' }); return true; }
     // ---------- com login
     const pid = conta(req);
+    if (lgpd && key === 'GET /api/portal/lgpd') { send(res, 200, await lgpd.portalListar(pid)); return true; }
+    if (lgpd && key === 'POST /api/portal/lgpd') { limite('g' + pid, 10); send(res, 200, await lgpd.portalAbrir(pid, await readBody(req))); return true; }
+    if (lgpd && key === 'GET /api/portal/meus-dados') { const d = await lgpd.portalExportar(pid); res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Content-Disposition': 'attachment; filename="meus-dados-mednexo.json"', 'Cache-Control': 'no-store' }); res.end(JSON.stringify(d, null, 2)); return true; }
     if (key === 'GET /api/portal/eu') { const u = (await pool.query(`SELECT nome, email, cpf, nascimento, celular, criado_em FROM mednexo.paciente_conta WHERE id = $1`, [pid])).rows[0];
       send(res, 200, { ...u, cpf: '•••.•••.' + u.cpf.slice(6, 9) + '-' + u.cpf.slice(9) }); return true; }
     if (key === 'POST /api/portal/eu') { const b = await readBody(req); const cel = String(b.celular || '').replace(/\D/g, '');

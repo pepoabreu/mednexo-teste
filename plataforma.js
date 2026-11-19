@@ -105,6 +105,31 @@ CREATE OR REPLACE FUNCTION plataforma.registro(p_lim int) RETURNS jsonb LANGUAGE
   SELECT coalesce(jsonb_agg(x), '[]') FROM (SELECT jsonb_build_object('criado_em', r.criado_em, 'autor', r.autor, 'acao', r.acao, 'organizacao', o.nome, 'detalhes', r.detalhes) AS x
     FROM plataforma_registro r LEFT JOIN organizacao o ON o.id = r.organizacao_id ORDER BY r.id DESC LIMIT least(p_lim, 500)) t $$;
 
+-- LGPD da plataforma (MedNexo como operador / controlador das contas da Área do Paciente); as tabelas são criadas pelo lgpd.js
+CREATE OR REPLACE FUNCTION plataforma.lgpd() RETURNS jsonb LANGUAGE plpgsql STABLE SECURITY DEFINER SET search_path = mednexo, public, pg_temp AS $$
+BEGIN
+  IF to_regclass('mednexo.lgpd_solicitacao') IS NULL THEN RETURN '{}'::jsonb; END IF;
+  RETURN jsonb_build_object(
+    'pedidos', (SELECT coalesce(jsonb_agg(to_jsonb(x) ORDER BY x.criado_em DESC), '[]') FROM (SELECT id, protocolo, titular_nome, contato, tipo, descricao, status, prazo_em, criado_em, respondida_em, resposta FROM lgpd_solicitacao WHERE organizacao_id IS NULL ORDER BY criado_em DESC LIMIT 200) x),
+    'pedidos_clinicas_atrasados', (SELECT count(*) FROM lgpd_solicitacao WHERE organizacao_id IS NOT NULL AND status IN ('aberta','em_analise') AND prazo_em < current_date),
+    'incidentes', (SELECT coalesce(jsonb_agg(to_jsonb(i) ORDER BY i.conhecimento_em DESC), '[]') FROM (SELECT id, titulo, descricao, conhecimento_em, classificacao, status, prazo_comunicacao, comunicado_controlador_em, comunicado_anpd_em, criado_em FROM lgpd_incidente WHERE organizacao_id IS NULL ORDER BY conhecimento_em DESC LIMIT 100) i));
+END $$;
+CREATE OR REPLACE FUNCTION plataforma.lgpd_responder(p_id uuid, p_status text, p_resposta text, p_autor text) RETURNS void LANGUAGE plpgsql SECURITY DEFINER SET search_path = mednexo, public, pg_temp AS $$
+BEGIN
+  IF p_status NOT IN ('em_analise','respondida','indeferida') THEN RAISE EXCEPTION 'situação inválida'; END IF;
+  IF p_status <> 'em_analise' AND length(coalesce(p_resposta,'')) < 10 THEN RAISE EXCEPTION 'escreva a resposta ao titular'; END IF;
+  UPDATE lgpd_solicitacao SET status = p_status, resposta = coalesce(nullif(p_resposta,''), resposta), respondida_em = CASE WHEN p_status <> 'em_analise' THEN now() ELSE respondida_em END, respondido_por = p_autor WHERE id = p_id AND organizacao_id IS NULL;
+  IF NOT FOUND THEN RAISE EXCEPTION 'pedido não encontrado'; END IF;
+  INSERT INTO lgpd_solicitacao_hist (solicitacao_id, autor, evento, texto) VALUES (p_id, p_autor, p_status, p_resposta);
+  INSERT INTO plataforma_registro (autor, acao, detalhes) VALUES (p_autor, 'lgpd_pedido_' || p_status, jsonb_build_object('pedido', p_id));
+END $$;
+CREATE OR REPLACE FUNCTION plataforma.lgpd_incidente(p_titulo text, p_descricao text, p_conhecimento timestamptz, p_class text, p_prazo date, p_autor text) RETURNS uuid LANGUAGE plpgsql SECURITY DEFINER SET search_path = mednexo, public, pg_temp AS $$
+DECLARE v uuid;
+BEGIN
+  INSERT INTO lgpd_incidente (organizacao_id, titulo, descricao, conhecimento_em, classificacao, prazo_comunicacao, criado_por) VALUES (NULL, p_titulo, p_descricao, p_conhecimento, p_class, p_prazo, p_autor) RETURNING id INTO v;
+  INSERT INTO plataforma_registro (autor, acao, detalhes) VALUES (p_autor, 'lgpd_incidente_registrar', jsonb_build_object('incidente', v, 'classificacao', p_class));
+  RETURN v;
+END $$;
 REVOKE ALL ON ALL FUNCTIONS IN SCHEMA plataforma FROM PUBLIC;
 GRANT EXECUTE ON ALL FUNCTIONS IN SCHEMA plataforma TO mednexo_plataforma;
 `;
